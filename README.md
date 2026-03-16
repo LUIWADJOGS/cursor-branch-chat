@@ -71,7 +71,7 @@ Package a `.vsix`:
 npx @vscode/vsce package
 ```
 
-Project layout: `src/extension.ts`, `src/views/`, `src/storage/`, `src/git/`, `src/chat/`, `src/cursor/`, `src/watchers/`. Docs: `docs/`.
+Project layout: `src/extension.ts`, `src/views/`, `src/storage/`, `src/git/`, `src/chat/`, `src/cursor/`, `src/watchers/`.
 
 ## License
 
