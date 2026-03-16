@@ -57,6 +57,13 @@ After installing:
 
 See `verification-scenarios.txt` in the repo for more scenarios.
 
+## Marketplace Assets
+
+The icon used by the extension lives in `media/icon.png`.
+
+For recommended screenshot names and the exact GIF capture script, see
+`MARKETPLACE_ASSETS.md`.
+
 ## Development
 
 ```bash
