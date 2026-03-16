@@ -1,0 +1,17 @@
+---
+description: Git workflow and safety rules for this project
+alwaysApply: true
+---
+
+# Git Workflow
+
+- Do not create commits, tags, branches, or pull requests unless explicitly requested.
+- Before any commit or PR, inspect `git status`, relevant `git diff`, and recent commit messages.
+- Never use destructive commands such as `git reset --hard`, `git checkout --`, `git clean -fd`, or force-push unless the user explicitly asks.
+- Do not amend commits unless the user explicitly requests it.
+- Never rewrite shared history on `main` or `master`.
+- Keep unrelated local changes intact; work around them instead of reverting them.
+- When making a commit, stage only files related to the requested task.
+- If a hook fails, fix the problem and create a new commit instead of bypassing hooks.
+- Do not change git config in this repository.
+- If the workspace is not a git repository, do not invent git operations; explain the limitation and continue with file work.

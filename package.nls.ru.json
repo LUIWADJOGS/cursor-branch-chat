@@ -1,0 +1,12 @@
+{
+  "extension.displayName": "Чаты веток Cursor",
+  "extension.description": "Показывать и открывать только чаты Cursor для текущей git-ветки. Создание, привязка и фильтр по ветке.",
+  "commands.createBranchChat.title": "Создать branch chat",
+  "commands.showChatsForCurrentBranch.title": "Показать чаты текущей ветки",
+  "commands.attachCurrentChatToBranch.title": "Привязать текущий чат к ветке",
+  "commands.openChat.title": "Открыть чат в Cursor",
+  "commands.copyPrompt.title": "Скопировать prompt",
+  "commands.archiveChat.title": "Убрать из чатов веток",
+  "views.container.title": "Чаты веток",
+  "views.branchChats.name": "Чаты веток"
+}
