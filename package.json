@@ -2,8 +2,8 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.2.0",
-  "publisher": "cursor-branch-chat",
+  "version": "0.2.2",
+  "publisher": "cursor-branch-chat-publisher",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -48,6 +48,10 @@
       {
         "command": "cursorBranchChat.attachCurrentChatToBranch",
         "title": "%commands.attachCurrentChatToBranch.title%"
+      },
+      {
+        "command": "cursorBranchChat.changeChatBranch",
+        "title": "%commands.changeChatBranch.title%"
       },
       {
         "command": "cursorBranchChat.openChat",
@@ -99,6 +103,10 @@
         },
         {
           "command": "cursorBranchChat.copyPrompt",
+          "when": "view == branchChats.branchChatsView && viewItem == entry"
+        },
+        {
+          "command": "cursorBranchChat.changeChatBranch",
           "when": "view == branchChats.branchChatsView && viewItem == entry"
         },
         {

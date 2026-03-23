@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { BranchChatEntry, CursorComposerSummary } from '../types/branchChat';
-import { getEntriesForBranch, archiveEntry } from '../storage/chatRegistry';
+import { getEntriesForBranch, archiveEntry, updateEntry } from '../storage/chatRegistry';
 import { getCurrentBranch } from '../git/getCurrentBranch';
 import {
   getActiveComposerId,
@@ -22,6 +22,10 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
     private readonly context: vscode.ExtensionContext,
     private getWorkspaceFolder: () => vscode.WorkspaceFolder | undefined
   ) {}
+
+  getCurrentWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+    return this.getWorkspaceFolder();
+  }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
@@ -112,6 +116,42 @@ export function registerTreeViewCommands(
         })
       );
     })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cursorBranchChat.changeChatBranch',
+      async (item: BranchChatTreeItem) => {
+        const nextBranch = await vscode.window.showInputBox({
+          prompt: t('messages.changeBranch.inputPrompt'),
+          placeHolder: t('messages.changeBranch.inputPlaceholder'),
+          value: item.entry.branchName,
+          valueSelection: [0, item.entry.branchName.length],
+          validateInput: (value) =>
+            value.trim() ? null : t('messages.changeBranch.inputValidation'),
+        });
+
+        if (nextBranch === undefined) {
+          return;
+        }
+
+        const normalizedBranch = nextBranch.trim();
+        if (!normalizedBranch || normalizedBranch === item.entry.branchName) {
+          return;
+        }
+
+        updateEntry(context.globalState, item.entry.id, {
+          branchName: normalizedBranch,
+        });
+        provider.refresh();
+
+        void vscode.window.showInformationMessage(
+          t('messages.changeBranch.success', {
+            name: item.composer.name ?? t('chat.untitled'),
+            branch: normalizedBranch,
+          })
+        );
+      }
+    )
   );
 }
 

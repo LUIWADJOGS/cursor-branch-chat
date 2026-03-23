@@ -16,6 +16,10 @@ type TranslationKey =
   | 'messages.createChat.inputValidation'
   | 'messages.createChat.openFailed'
   | 'messages.createChat.attachFailed'
+  | 'messages.changeBranch.inputPrompt'
+  | 'messages.changeBranch.inputPlaceholder'
+  | 'messages.changeBranch.inputValidation'
+  | 'messages.changeBranch.success'
   | 'messages.detach.success'
   | 'messages.noWorkspace'
   | 'messages.openExisting.failed'
@@ -43,6 +47,10 @@ const en: Translations = {
   'messages.createChat.openFailed': 'Could not open Cursor chat deeplink.',
   'messages.createChat.attachFailed':
     'Opened a new Cursor chat, but could not attach it to the current branch automatically.',
+  'messages.changeBranch.inputPrompt': 'Move this chat to another branch',
+  'messages.changeBranch.inputPlaceholder': 'Enter target branch name',
+  'messages.changeBranch.inputValidation': 'Enter a branch name',
+  'messages.changeBranch.success': 'Moved "{name}" to branch "{branch}".',
   'messages.detach.success': 'Removed "{name}" from Branch Chats.',
   'messages.noWorkspace': 'Open a workspace folder first.',
   'messages.openExisting.failed': 'Could not switch Cursor to chat "{name}".',
@@ -69,6 +77,10 @@ const ru: Translations = {
   'messages.createChat.openFailed': 'Не удалось открыть deeplink чата Cursor.',
   'messages.createChat.attachFailed':
     'Новый чат Cursor открыт, но автоматически привязать его к текущей ветке не удалось.',
+  'messages.changeBranch.inputPrompt': 'Перенести этот чат на другую ветку',
+  'messages.changeBranch.inputPlaceholder': 'Введите имя целевой ветки',
+  'messages.changeBranch.inputValidation': 'Введите имя ветки',
+  'messages.changeBranch.success': 'Чат "{name}" перенесен на ветку "{branch}".',
   'messages.detach.success': 'Чат "{name}" убран из списка Branch Chats.',
   'messages.noWorkspace': 'Сначала открой папку workspace.',
   'messages.openExisting.failed': 'Не удалось переключить Cursor на чат "{name}".',

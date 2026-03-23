@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-03-16
+
+### Added
+
+- Added `Change Chat Branch` action to move a tracked chat to another branch from the item context menu.
+
+## [0.2.1] - 2025-03-16
+
+### Changed
+
+- Updated the extension publisher id to `cursor-branch-chat-publisher`.
+- Rebuilt the release package for Marketplace publishing.
+
 ## [0.2.0] - 2025-03-16
 
 ### Added
