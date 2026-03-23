@@ -2,8 +2,8 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.2.2",
-  "publisher": "cursor-branch-chat-publisher",
+  "version": "0.2.3",
+  "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {
     "type": "git",
