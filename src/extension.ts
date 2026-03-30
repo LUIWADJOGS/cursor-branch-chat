@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getCurrentBranch } from './git/getCurrentBranch';
+import { getCurrentBranch, getHeadCommit } from './git/getCurrentBranch';
 import { buildBranchPrompt } from './chat/buildBranchPrompt';
 import { openPromptInCursor } from './chat/createPromptDeeplink';
 import { getEntriesForBranch, upsertEntry } from './storage/chatRegistry';
@@ -57,10 +57,12 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
+      const startCommitHash = await getHeadCommit(folder.uri.fsPath) ?? undefined;
       upsertEntry(context.globalState, {
         composerId: composer.composerId,
         branchName: branch,
         promptText,
+        startCommitHash,
         workspaceFolder: folder.uri.fsPath,
         status: 'active',
       });
@@ -83,9 +85,11 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
+      const startCommitHash = await getHeadCommit(folder.uri.fsPath) ?? undefined;
       upsertEntry(context.globalState, {
         composerId: composer.composerId,
         branchName: branch,
+        startCommitHash,
         workspaceFolder: folder.uri.fsPath,
         status: 'active',
       });

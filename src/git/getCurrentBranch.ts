@@ -32,6 +32,18 @@ async function getCurrentBranchViaCli(workspacePath: string): Promise<string> {
   });
 }
 
+export async function getHeadCommit(workspacePath: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile('git', ['rev-parse', 'HEAD'], { cwd: workspacePath }, (err: Error | null, stdout: string) => {
+      if (err || !stdout?.trim()) {
+        resolve(null);
+        return;
+      }
+      resolve(stdout.trim());
+    });
+  });
+}
+
 interface GitApi {
   repositories: Array<{ rootUri: { fsPath: string }; state: { HEAD?: { name?: string } } }>;
 }

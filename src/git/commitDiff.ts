@@ -1,0 +1,51 @@
+import { execFile } from 'child_process';
+
+export interface CommitDiffInfo {
+  commitCount: number;
+  changedFiles: string[];
+}
+
+export async function getCommitDiffSince(
+  workspacePath: string,
+  startCommitHash: string
+): Promise<CommitDiffInfo> {
+  const [commitCount, changedFiles] = await Promise.all([
+    getCommitCountSince(workspacePath, startCommitHash),
+    getChangedFilesSince(workspacePath, startCommitHash),
+  ]);
+  return { commitCount, changedFiles };
+}
+
+function getCommitCountSince(workspacePath: string, startCommitHash: string): Promise<number> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['rev-list', '--count', `${startCommitHash}..HEAD`],
+      { cwd: workspacePath },
+      (err: Error | null, stdout: string) => {
+        if (err || !stdout?.trim()) {
+          resolve(0);
+          return;
+        }
+        resolve(parseInt(stdout.trim(), 10) || 0);
+      }
+    );
+  });
+}
+
+function getChangedFilesSince(workspacePath: string, startCommitHash: string): Promise<string[]> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['diff', '--name-only', startCommitHash, 'HEAD'],
+      { cwd: workspacePath },
+      (err: Error | null, stdout: string) => {
+        if (err || !stdout?.trim()) {
+          resolve([]);
+          return;
+        }
+        resolve(stdout.trim().split('\n').filter(Boolean));
+      }
+    );
+  });
+}

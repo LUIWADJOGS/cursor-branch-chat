@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-13
+
+### Added
+
+- Each tracked chat now records the HEAD commit hash at the moment of creation or attachment (`startCommitHash`).
+- The sidebar shows a `↑N` badge next to the branch name when N new commits have been made on the branch since the chat was started.
+- Hovering over a chat in the sidebar displays a tooltip listing all files changed in those commits (up to 20; overflow shown as "…and N more files").
+
 ## [0.2.3] - 2025-03-16
 
 ### Changed

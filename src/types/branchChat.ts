@@ -24,6 +24,7 @@ export interface BranchChatEntry {
   composerId: string;
   branchName: string;
   promptText?: string;
+  startCommitHash?: string;
   createdAt: string;
   updatedAt: string;
   workspaceFolder: string;

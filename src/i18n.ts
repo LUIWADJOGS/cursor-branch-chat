@@ -24,7 +24,10 @@ type TranslationKey =
   | 'messages.noWorkspace'
   | 'messages.openExisting.failed'
   | 'messages.showChats.empty'
-  | 'messages.showChats.placeholder';
+  | 'messages.showChats.placeholder'
+  | 'chat.commitsBadge'
+  | 'chat.commitsTooltipHeader'
+  | 'chat.commitsTooltipMoreFiles';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -56,6 +59,9 @@ const en: Translations = {
   'messages.openExisting.failed': 'Could not switch Cursor to chat "{name}".',
   'messages.showChats.empty': 'No branch chats for "{branch}". Create one with "Create Branch Chat".',
   'messages.showChats.placeholder': 'Chats for branch: {branch}',
+  'chat.commitsBadge': '↑{count}',
+  'chat.commitsTooltipHeader': '{count} new commit(s) since chat was created:',
+  'chat.commitsTooltipMoreFiles': '…and {count} more files',
 };
 
 const ru: Translations = {
@@ -87,6 +93,9 @@ const ru: Translations = {
   'messages.showChats.empty':
     'Для ветки "{branch}" нет привязанных чатов. Создай новый через "Create Branch Chat".',
   'messages.showChats.placeholder': 'Чаты для ветки: {branch}',
+  'chat.commitsBadge': '↑{count}',
+  'chat.commitsTooltipHeader': '{count} новых коммит(ов) с момента создания чата:',
+  'chat.commitsTooltipMoreFiles': '…и ещё {count} файлов',
 };
 
 const translations = isRussianLanguage() ? ru : en;

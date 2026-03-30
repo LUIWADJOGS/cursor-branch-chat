@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { BranchChatEntry, CursorComposerSummary } from '../types/branchChat';
 import { getEntriesForBranch, archiveEntry, updateEntry } from '../storage/chatRegistry';
 import { getCurrentBranch } from '../git/getCurrentBranch';
+import { getCommitDiffSince, CommitDiffInfo } from '../git/commitDiff';
 import {
   getActiveComposerId,
   getComposerData,
@@ -46,11 +47,19 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
       getRootComposers(composerData).map((composer) => [composer.composerId, composer])
     );
 
-    return entries
-      .map((entry) => {
+    const items = await Promise.all(
+      entries.map(async (entry) => {
         const composer = composerById.get(entry.composerId);
-        return composer ? new BranchChatTreeItem(entry, composer, 'entry') : null;
+        if (!composer) return null;
+        let commitInfo: CommitDiffInfo | undefined;
+        if (entry.startCommitHash) {
+          commitInfo = await getCommitDiffSince(folder.uri.fsPath, entry.startCommitHash);
+        }
+        return new BranchChatTreeItem(entry, composer, 'entry', commitInfo);
       })
+    );
+
+    return items
       .filter((item): item is BranchChatTreeItem => item !== null)
       .sort((left, right) => {
         const rightTimestamp = right.composer.lastUpdatedAt ?? right.composer.createdAt;
@@ -64,7 +73,8 @@ export class BranchChatTreeItem extends vscode.TreeItem {
   constructor(
     public readonly entry: BranchChatEntry,
     public readonly composer: CursorComposerSummary,
-    type: 'entry'
+    type: 'entry',
+    commitInfo?: CommitDiffInfo
   ) {
     super(composer.name ?? t('chat.untitled'), vscode.TreeItemCollapsibleState.None);
     this.contextValue = type;
@@ -73,8 +83,36 @@ export class BranchChatTreeItem extends vscode.TreeItem {
       title: t('chat.openTitle'),
       arguments: [this],
     };
-    this.tooltip = [entry.branchName, composer.subtitle].filter(Boolean).join('\n');
-    this.description = entry.branchName;
+
+    const hasBadge = commitInfo !== undefined && commitInfo.commitCount > 0;
+    const badge = hasBadge
+      ? ` ${t('chat.commitsBadge', { count: String(commitInfo!.commitCount) })}`
+      : '';
+    this.description = `${entry.branchName}${badge}`;
+
+    const tooltip = new vscode.MarkdownString();
+    tooltip.appendText(entry.branchName);
+    if (hasBadge) {
+      tooltip.appendText(
+        `\n\n${t('chat.commitsTooltipHeader', { count: String(commitInfo!.commitCount) })}\n`
+      );
+      const MAX_FILES = 20;
+      const shown = commitInfo!.changedFiles.slice(0, MAX_FILES);
+      for (const file of shown) {
+        tooltip.appendText(`• ${file}\n`);
+      }
+      if (commitInfo!.changedFiles.length > MAX_FILES) {
+        tooltip.appendText(
+          t('chat.commitsTooltipMoreFiles', {
+            count: String(commitInfo!.changedFiles.length - MAX_FILES),
+          })
+        );
+      }
+    }
+    if (composer.subtitle) {
+      tooltip.appendText(`\n\n${composer.subtitle}`);
+    }
+    this.tooltip = tooltip;
   }
 }
 
