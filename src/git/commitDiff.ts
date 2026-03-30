@@ -5,6 +5,26 @@ export interface CommitDiffInfo {
   changedFiles: string[];
 }
 
+export async function getCommitAtTime(
+  workspacePath: string,
+  isoDate: string
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['log', `--until=${isoDate}`, '-1', '--format=%H'],
+      { cwd: workspacePath },
+      (err: Error | null, stdout: string) => {
+        if (err || !stdout?.trim()) {
+          resolve(null);
+          return;
+        }
+        resolve(stdout.trim());
+      }
+    );
+  });
+}
+
 export async function getCommitDiffSince(
   workspacePath: string,
   startCommitHash: string

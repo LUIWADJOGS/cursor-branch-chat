@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { BranchChatEntry, CursorComposerSummary } from '../types/branchChat';
 import { getEntriesForBranch, archiveEntry, updateEntry } from '../storage/chatRegistry';
 import { getCurrentBranch } from '../git/getCurrentBranch';
-import { getCommitDiffSince, CommitDiffInfo } from '../git/commitDiff';
+import { getCommitDiffSince, getCommitAtTime, CommitDiffInfo } from '../git/commitDiff';
 import {
   getActiveComposerId,
   getComposerData,
@@ -51,6 +51,15 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
       entries.map(async (entry) => {
         const composer = composerById.get(entry.composerId);
         if (!composer) return null;
+
+        if (!entry.startCommitHash) {
+          const hash = await getCommitAtTime(folder.uri.fsPath, entry.createdAt);
+          if (hash) {
+            updateEntry(this.context.globalState, entry.id, { startCommitHash: hash });
+            entry = { ...entry, startCommitHash: hash };
+          }
+        }
+
         let commitInfo: CommitDiffInfo | undefined;
         if (entry.startCommitHash) {
           commitInfo = await getCommitDiffSince(folder.uri.fsPath, entry.startCommitHash);
