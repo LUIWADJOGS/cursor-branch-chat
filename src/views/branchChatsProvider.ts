@@ -3,6 +3,7 @@ import type { BranchChatEntry, CursorComposerSummary } from '../types/branchChat
 import { getEntriesForBranch, archiveEntry, updateEntry } from '../storage/chatRegistry';
 import { getCurrentBranch } from '../git/getCurrentBranch';
 import { getCommitDiffSince, getCommitAtTime, CommitDiffInfo } from '../git/commitDiff';
+import { showCommitDiffPanel } from './commitDiffPanel';
 import {
   getActiveComposerId,
   getComposerData,
@@ -82,11 +83,10 @@ export class BranchChatTreeItem extends vscode.TreeItem {
   constructor(
     public readonly entry: BranchChatEntry,
     public readonly composer: CursorComposerSummary,
-    type: 'entry',
+    _type: 'entry',
     commitInfo?: CommitDiffInfo
   ) {
     super(composer.name ?? t('chat.untitled'), vscode.TreeItemCollapsibleState.None);
-    this.contextValue = type;
     this.command = {
       command: 'cursorBranchChat.openChat',
       title: t('chat.openTitle'),
@@ -98,6 +98,7 @@ export class BranchChatTreeItem extends vscode.TreeItem {
       ? ` ${t('chat.commitsBadge', { count: String(commitInfo!.commitCount) })}`
       : '';
     this.description = `${entry.branchName}${badge}`;
+    this.contextValue = hasBadge ? 'entry-with-diff' : 'entry';
 
     const tooltip = new vscode.MarkdownString();
     tooltip.appendText(entry.branchName);
@@ -164,6 +165,36 @@ export function registerTreeViewCommands(
       );
     })
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cursorBranchChat.showCommitDiff',
+      async (item: BranchChatTreeItem) => {
+        const folder = provider.getCurrentWorkspaceFolder();
+        if (!folder || !item.entry.startCommitHash) {
+          void vscode.window.showInformationMessage(t('messages.commitDiff.noStartCommit'));
+          return;
+        }
+
+        const { changedFiles } = await getCommitDiffSince(
+          folder.uri.fsPath,
+          item.entry.startCommitHash
+        );
+        if (changedFiles.length === 0) {
+          void vscode.window.showInformationMessage(t('messages.commitDiff.noChanges'));
+          return;
+        }
+
+        const chatName = item.composer.name ?? t('chat.untitled');
+        const hash = item.entry.startCommitHash;
+
+        const shown = await showCommitDiffPanel(folder.uri.fsPath, hash, chatName);
+        if (!shown) {
+          void vscode.window.showInformationMessage(t('messages.commitDiff.noChanges'));
+        }
+      }
+    )
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'cursorBranchChat.changeChatBranch',

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getCurrentBranch, getHeadCommit } from './git/getCurrentBranch';
+import { GitContentProvider, GIT_CONTENT_SCHEME } from './git/gitContentProvider';
 import { buildBranchPrompt } from './chat/buildBranchPrompt';
 import { openPromptInCursor } from './chat/createPromptDeeplink';
 import { getEntriesForBranch, upsertEntry } from './storage/chatRegistry';
@@ -17,6 +18,10 @@ import {
 export function activate(context: vscode.ExtensionContext): void {
   const getWorkspaceFolder = (): vscode.WorkspaceFolder | undefined =>
     vscode.workspace.workspaceFolders?.[0];
+
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(GIT_CONTENT_SCHEME, new GitContentProvider())
+  );
 
   const provider = new BranchChatsProvider(context, getWorkspaceFolder);
   context.subscriptions.push(

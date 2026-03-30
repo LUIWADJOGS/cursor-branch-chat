@@ -27,7 +27,10 @@ type TranslationKey =
   | 'messages.showChats.placeholder'
   | 'chat.commitsBadge'
   | 'chat.commitsTooltipHeader'
-  | 'chat.commitsTooltipMoreFiles';
+  | 'chat.commitsTooltipMoreFiles'
+  | 'messages.commitDiff.noStartCommit'
+  | 'messages.commitDiff.noChanges'
+  | 'messages.commitDiff.title';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -62,6 +65,9 @@ const en: Translations = {
   'chat.commitsBadge': '↑{count}',
   'chat.commitsTooltipHeader': '{count} new commit(s) since chat was created:',
   'chat.commitsTooltipMoreFiles': '…and {count} more files',
+  'messages.commitDiff.noStartCommit': 'No start commit recorded for this chat.',
+  'messages.commitDiff.noChanges': 'No file changes since this chat was created.',
+  'messages.commitDiff.title': 'Showing changes for "{name}"',
 };
 
 const ru: Translations = {
@@ -96,6 +102,9 @@ const ru: Translations = {
   'chat.commitsBadge': '↑{count}',
   'chat.commitsTooltipHeader': '{count} новых коммит(ов) с момента создания чата:',
   'chat.commitsTooltipMoreFiles': '…и ещё {count} файлов',
+  'messages.commitDiff.noStartCommit': 'Стартовый коммит для этого чата не записан.',
+  'messages.commitDiff.noChanges': 'Изменений с момента создания чата нет.',
+  'messages.commitDiff.title': 'Изменения для чата "{name}"',
 };
 
 const translations = isRussianLanguage() ? ru : en;

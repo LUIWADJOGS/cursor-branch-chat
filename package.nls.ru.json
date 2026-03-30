@@ -8,6 +8,7 @@
   "commands.openChat.title": "Открыть чат в Cursor",
   "commands.copyPrompt.title": "Скопировать prompt",
   "commands.archiveChat.title": "Убрать из чатов веток",
+  "commands.showCommitDiff.title": "Показать изменения с момента создания чата",
   "views.container.title": "Чаты веток",
   "views.branchChats.name": "Чаты веток"
 }

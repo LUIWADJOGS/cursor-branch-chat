@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-03-13
+
+### Changed
+
+- "Show Changes" now opens a Webview panel with a proper diff viewer: all changed files in one scrollable view with green/red highlights, file headers, and a clickable file index at the top.
+
+## [0.3.5] - 2026-03-13
+
+### Changed
+
+- "Show Changes" opens a single tab with the full `git diff` output (all files one under another) instead of multiple diff tabs.
+
+## [0.3.4] - 2026-03-13
+
+### Changed
+
+- "Show Changes" now opens all changed files as diff tabs at once (file by file) instead of a QuickPick selector.
+
+## [0.3.3] - 2026-03-13
+
+### Fixed
+
+- "Show Changes" no longer throws "Invalid argument resourceList" — replaced `vscode.changes` (incompatible with Cursor) with a QuickPick file picker followed by `vscode.diff` for the selected file.
+
+## [0.3.2] - 2026-03-13
+
+### Changed
+
+- "Show Changes" now opens a proper VS Code diff editor (red/green lines, file by file) instead of a raw text diff. Uses `vscode.changes` for a multi-file panel when available, falls back to `vscode.diff` per file.
+
+## [0.3.1] - 2026-03-13
+
+### Added
+
+- Inline `$(git-compare)` button on chat items with new commits — opens the full `git diff` in a VS Code editor tab with diff syntax highlighting.
+- Context menu item "Show Changes Since Chat Was Created" for the same action.
+
 ## [0.3.0] - 2026-03-13
 
 ### Added

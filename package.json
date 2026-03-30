@@ -2,7 +2,7 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.3.0",
+  "version": "0.3.6",
   "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {
@@ -64,6 +64,11 @@
       {
         "command": "cursorBranchChat.archiveChat",
         "title": "%commands.archiveChat.title%"
+      },
+      {
+        "command": "cursorBranchChat.showCommitDiff",
+        "title": "%commands.showCommitDiff.title%",
+        "icon": "$(git-compare)"
       }
     ],
     "viewsContainers": {
@@ -96,24 +101,33 @@
           "group": "navigation"
         }
       ],
-      "view/item/context": [
-        {
-          "command": "cursorBranchChat.openChat",
-          "when": "view == branchChats.branchChatsView && viewItem == entry"
-        },
-        {
-          "command": "cursorBranchChat.copyPrompt",
-          "when": "view == branchChats.branchChatsView && viewItem == entry"
-        },
-        {
-          "command": "cursorBranchChat.changeChatBranch",
-          "when": "view == branchChats.branchChatsView && viewItem == entry"
-        },
-        {
-          "command": "cursorBranchChat.archiveChat",
-          "when": "view == branchChats.branchChatsView && viewItem == entry"
-        }
-      ]
+          "view/item/context": [
+            {
+              "command": "cursorBranchChat.openChat",
+              "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
+            },
+            {
+              "command": "cursorBranchChat.copyPrompt",
+              "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
+            },
+            {
+              "command": "cursorBranchChat.showCommitDiff",
+              "when": "view == branchChats.branchChatsView && viewItem == entry-with-diff",
+              "group": "inline"
+            },
+            {
+              "command": "cursorBranchChat.showCommitDiff",
+              "when": "view == branchChats.branchChatsView && viewItem == entry-with-diff"
+            },
+            {
+              "command": "cursorBranchChat.changeChatBranch",
+              "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
+            },
+            {
+              "command": "cursorBranchChat.archiveChat",
+              "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
+            }
+          ]
     }
   },
   "scripts": {

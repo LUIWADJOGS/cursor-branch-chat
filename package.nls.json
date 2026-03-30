@@ -8,6 +8,7 @@
   "commands.openChat.title": "Open in Cursor Chat",
   "commands.copyPrompt.title": "Copy Prompt",
   "commands.archiveChat.title": "Remove From Branch Chats",
+  "commands.showCommitDiff.title": "Show Changes Since Chat Was Created",
   "views.container.title": "Branch Chats",
   "views.branchChats.name": "Branch Chats"
 }

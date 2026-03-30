@@ -53,6 +53,22 @@ function getCommitCountSince(workspacePath: string, startCommitHash: string): Pr
   });
 }
 
+export async function getFullDiff(
+  workspacePath: string,
+  startCommitHash: string
+): Promise<string> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['diff', startCommitHash, 'HEAD'],
+      { cwd: workspacePath, maxBuffer: 10 * 1024 * 1024 },
+      (err: Error | null, stdout: string) => {
+        resolve(err ? '' : stdout ?? '');
+      }
+    );
+  });
+}
+
 function getChangedFilesSince(workspacePath: string, startCommitHash: string): Promise<string[]> {
   return new Promise((resolve) => {
     execFile(
