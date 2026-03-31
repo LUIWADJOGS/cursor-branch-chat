@@ -4,7 +4,8 @@ import { getFullDiff } from '../git/commitDiff';
 export async function showCommitDiffPanel(
   workspacePath: string,
   startCommitHash: string,
-  chatName: string
+  chatName: string,
+  headerLabel?: string
 ): Promise<boolean> {
   const diff = await getFullDiff(workspacePath, startCommitHash);
   if (!diff.trim()) {
@@ -18,7 +19,7 @@ export async function showCommitDiffPanel(
     { enableScripts: true }
   );
 
-  panel.webview.html = buildDiffHtml(diff, chatName);
+  panel.webview.html = buildDiffHtml(diff, chatName, headerLabel);
   return true;
 }
 
@@ -30,7 +31,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildDiffHtml(diffText: string, chatName: string): string {
+function buildDiffHtml(diffText: string, chatName: string, headerLabel?: string): string {
   const lines = diffText.split('\n');
   const files: string[] = [];
   let bodyHtml = '';
@@ -72,7 +73,6 @@ function buildDiffHtml(diffText: string, chatName: string): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -173,7 +173,7 @@ function buildDiffHtml(diffText: string, chatName: string): string {
 </head>
 <body>
   <div class="top-bar">
-    <span class="title">Changes since chat was created</span>
+    <span class="title">${escapeHtml(headerLabel ?? 'Changes since chat was created')}</span>
     <span class="subtitle">${escapeHtml(chatName)} · ${files.length} file(s)</span>
   </div>
   <div class="file-list">${fileListHtml}</div>

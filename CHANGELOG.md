@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-03-13
+
+### Fixed
+
+- Removed restrictive Content-Security-Policy meta tag from the diff webview — it was blocking VS Code's internal service worker registration and causing "InvalidStateError" on panel open.
+
+## [0.3.7] - 2026-03-13
+
+### Added
+
+- New command "Show All Branch Changes (vs base branch)" — opens the same diff webview but shows everything changed on the current branch relative to `main`/`master`/`develop` (uses `git merge-base`). Available as an inline button and context menu item on every chat entry.
+
 ## [0.3.6] - 2026-03-13
 
 ### Changed

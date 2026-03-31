@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { BranchChatEntry, CursorComposerSummary } from '../types/branchChat';
 import { getEntriesForBranch, archiveEntry, updateEntry } from '../storage/chatRegistry';
 import { getCurrentBranch } from '../git/getCurrentBranch';
-import { getCommitDiffSince, getCommitAtTime, CommitDiffInfo } from '../git/commitDiff';
+import { getCommitDiffSince, getCommitAtTime, getBranchBaseCommit, CommitDiffInfo } from '../git/commitDiff';
 import { showCommitDiffPanel } from './commitDiffPanel';
 import {
   getActiveComposerId,
@@ -188,6 +188,36 @@ export function registerTreeViewCommands(
         const hash = item.entry.startCommitHash;
 
         const shown = await showCommitDiffPanel(folder.uri.fsPath, hash, chatName);
+        if (!shown) {
+          void vscode.window.showInformationMessage(t('messages.commitDiff.noChanges'));
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cursorBranchChat.showBranchDiff',
+      async (item: BranchChatTreeItem) => {
+        const folder = provider.getCurrentWorkspaceFolder();
+        if (!folder) {
+          void vscode.window.showWarningMessage(t('messages.noWorkspace'));
+          return;
+        }
+
+        const baseCommit = await getBranchBaseCommit(folder.uri.fsPath);
+        if (!baseCommit) {
+          void vscode.window.showInformationMessage(t('messages.branchDiff.noBase'));
+          return;
+        }
+
+        const chatName = item.composer.name ?? t('chat.untitled');
+        const shown = await showCommitDiffPanel(
+          folder.uri.fsPath,
+          baseCommit,
+          chatName,
+          t('messages.branchDiff.header', { branch: item.entry.branchName })
+        );
         if (!shown) {
           void vscode.window.showInformationMessage(t('messages.commitDiff.noChanges'));
         }

@@ -5,6 +5,35 @@ export interface CommitDiffInfo {
   changedFiles: string[];
 }
 
+const BASE_BRANCH_CANDIDATES = ['main', 'master', 'develop', 'dev'];
+
+export async function getBranchBaseCommit(workspacePath: string): Promise<string | null> {
+  for (const base of BASE_BRANCH_CANDIDATES) {
+    const hash = await tryMergeBase(workspacePath, base);
+    if (hash) {
+      return hash;
+    }
+  }
+  return null;
+}
+
+function tryMergeBase(workspacePath: string, baseBranch: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['merge-base', 'HEAD', baseBranch],
+      { cwd: workspacePath },
+      (err: Error | null, stdout: string) => {
+        if (err || !stdout?.trim()) {
+          resolve(null);
+          return;
+        }
+        resolve(stdout.trim());
+      }
+    );
+  });
+}
+
 export async function getCommitAtTime(
   workspacePath: string,
   isoDate: string

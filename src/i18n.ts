@@ -30,7 +30,9 @@ type TranslationKey =
   | 'chat.commitsTooltipMoreFiles'
   | 'messages.commitDiff.noStartCommit'
   | 'messages.commitDiff.noChanges'
-  | 'messages.commitDiff.title';
+  | 'messages.commitDiff.title'
+  | 'messages.branchDiff.noBase'
+  | 'messages.branchDiff.header';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -68,6 +70,8 @@ const en: Translations = {
   'messages.commitDiff.noStartCommit': 'No start commit recorded for this chat.',
   'messages.commitDiff.noChanges': 'No file changes since this chat was created.',
   'messages.commitDiff.title': 'Showing changes for "{name}"',
+  'messages.branchDiff.noBase': 'Could not find base branch (main / master / develop). Make sure the base branch exists locally.',
+  'messages.branchDiff.header': 'All changes on branch "{branch}" vs base',
 };
 
 const ru: Translations = {
@@ -105,6 +109,8 @@ const ru: Translations = {
   'messages.commitDiff.noStartCommit': 'Стартовый коммит для этого чата не записан.',
   'messages.commitDiff.noChanges': 'Изменений с момента создания чата нет.',
   'messages.commitDiff.title': 'Изменения для чата "{name}"',
+  'messages.branchDiff.noBase': 'Не удалось найти базовую ветку (main / master / develop). Убедись, что она доступна локально.',
+  'messages.branchDiff.header': 'Все изменения на ветке "{branch}" относительно базы',
 };
 
 const translations = isRussianLanguage() ? ru : en;
