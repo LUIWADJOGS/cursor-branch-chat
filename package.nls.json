@@ -1,6 +1,6 @@
 {
   "extension.displayName": "Cursor Branch Chat",
-  "extension.description": "Show and open only Cursor chats for your current git branch. Create, attach, and filter branch-scoped chats.",
+  "extension.description": "Organize Cursor AI chats by git branch. Filter, attach, reopen, and view git diffs directly from your branch chat history.",
   "commands.createBranchChat.title": "Create Branch Chat",
   "commands.showChatsForCurrentBranch.title": "Show Chats For Current Branch",
   "commands.attachCurrentChatToBranch.title": "Attach Current Chat To Branch",

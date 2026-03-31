@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-03-13
+
+### Changed
+
+- Categories updated to `AI` and `SCM Providers` for better Marketplace discoverability.
+- Added keywords: `cursor-ai`, `cursor-chat`, `ai-chat`, `git-branch`, `llm`, `workflow`, `productivity`, `branch-management`, `chat-history`.
+- Improved extension description to better reflect all features.
+
 ## [0.3.8] - 2026-03-13
 
 ### Fixed

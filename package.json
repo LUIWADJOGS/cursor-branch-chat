@@ -2,7 +2,7 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {
@@ -15,16 +15,27 @@
   },
   "keywords": [
     "cursor",
+    "cursor-ai",
+    "cursor-chat",
     "chat",
+    "ai-chat",
     "git",
+    "git-branch",
     "branch",
     "composer",
-    "ai"
+    "ai",
+    "llm",
+    "workflow",
+    "productivity",
+    "branch-management",
+    "chat-history"
   ],
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
+    "AI",
+    "SCM Providers",
     "Other"
   ],
   "icon": "media/icon.png",

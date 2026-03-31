@@ -1,6 +1,6 @@
 {
   "extension.displayName": "Чаты веток Cursor",
-  "extension.description": "Показывать и открывать только чаты Cursor для текущей git-ветки. Создание, привязка и фильтр по ветке.",
+  "extension.description": "Организуй AI-чаты Cursor по git-веткам. Фильтрация, привязка, открытие и просмотр git diff прямо из истории чатов ветки.",
   "commands.createBranchChat.title": "Создать branch chat",
   "commands.showChatsForCurrentBranch.title": "Показать чаты текущей ветки",
   "commands.attachCurrentChatToBranch.title": "Привязать текущий чат к ветке",
