@@ -68,6 +68,7 @@ export function activate(context: vscode.ExtensionContext): void {
         branchName: branch,
         promptText,
         startCommitHash,
+        cachedName: composer.name,
         workspaceFolder: folder.uri.fsPath,
         status: 'active',
       });
@@ -95,6 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
         composerId: composer.composerId,
         branchName: branch,
         startCommitHash,
+        cachedName: composer.name,
         workspaceFolder: folder.uri.fsPath,
         status: 'active',
       });

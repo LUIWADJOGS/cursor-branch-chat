@@ -41,32 +41,36 @@ export async function getSelectedComposerId(
 export async function getSelectedRootComposer(
   context: vscode.ExtensionContext
 ): Promise<CursorComposerSummary | null> {
-  const data = await getComposerData(context);
-  if (!data) {
-    return null;
-  }
+  const [data, activeId] = await Promise.all([
+    getComposerData(context),
+    getActiveComposerId(context),
+  ]);
 
   const selectedComposerId =
-    (await getActiveComposerId(context)) ??
-    data.lastFocusedComposerIds?.[0] ??
-    data.selectedComposerIds?.[0] ??
+    activeId ??
+    data?.lastFocusedComposerIds?.[0] ??
+    data?.selectedComposerIds?.[0] ??
     null;
+
   if (!selectedComposerId) {
     return null;
   }
 
-  const selectedComposer = data.allComposers.find(
+  const selectedComposer = data?.allComposers.find(
     (composer) => composer.composerId === selectedComposerId
   );
+
+  // Cursor may have migrated old chats out of allComposers — fall back to a
+  // minimal summary so the user can still attach whichever chat is active.
   if (!selectedComposer) {
-    return null;
+    return { composerId: selectedComposerId, createdAt: Date.now() };
   }
 
   if (selectedComposer.subagentInfo?.parentComposerId) {
     return (
-      data.allComposers.find(
+      data!.allComposers.find(
         (composer) => composer.composerId === selectedComposer.subagentInfo?.parentComposerId
-      ) ?? null
+      ) ?? selectedComposer
     );
   }
 
@@ -78,9 +82,18 @@ export function getRootComposers(data: CursorComposerData | null): CursorCompose
     return [];
   }
 
-  return data.allComposers.filter(
-    (composer) => !composer.isArchived && !composer.subagentInfo
-  );
+  return data.allComposers.filter((composer) => {
+    if (composer.isArchived) {
+      return false;
+    }
+    // New Cursor (post-migration): all root chats have type "head"; no subagentInfo.
+    // Old Cursor: root chats have no subagentInfo field at all.
+    const composerWithType = composer as CursorComposerSummary & { type?: string };
+    if (composerWithType.type !== undefined) {
+      return composerWithType.type === 'head';
+    }
+    return !composer.subagentInfo;
+  });
 }
 
 export async function waitForNewComposer(

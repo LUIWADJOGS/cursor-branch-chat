@@ -81,7 +81,7 @@ export function upsertEntry(
 export function updateEntry(
   context: vscode.Memento,
   id: string,
-  patch: Partial<Pick<BranchChatEntry, 'branchName' | 'startCommitHash' | 'status' | 'updatedAt'>>
+  patch: Partial<Pick<BranchChatEntry, 'branchName' | 'startCommitHash' | 'cachedName' | 'status' | 'updatedAt'>>
 ): BranchChatEntry | null {
   const all = getAllEntries(context);
   const index = all.findIndex((e) => e.id === id);

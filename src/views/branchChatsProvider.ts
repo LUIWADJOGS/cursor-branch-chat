@@ -50,8 +50,21 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
 
     const items = await Promise.all(
       entries.map(async (entry) => {
-        const composer = composerById.get(entry.composerId);
-        if (!composer) return null;
+        const liveComposer = composerById.get(entry.composerId);
+
+        // After Cursor's chat migration allComposers only has ~10 recent entries.
+        // Older attached chats are no longer listed there, so we fall back to a
+        // synthetic summary built from whatever we cached at attach time.
+        const composer: CursorComposerSummary = liveComposer ?? {
+          composerId: entry.composerId,
+          name: entry.cachedName,
+          createdAt: new Date(entry.createdAt).getTime(),
+        };
+
+        // Keep cachedName in sync so it survives future migrations.
+        if (liveComposer?.name && liveComposer.name !== entry.cachedName) {
+          updateEntry(this.context.globalState, entry.id, { cachedName: liveComposer.name });
+        }
 
         if (!entry.startCommitHash) {
           const hash = await getCommitAtTime(folder.uri.fsPath, entry.createdAt);

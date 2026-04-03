@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-13
+
+### Fixed
+
+- **Attach Current Chat** now works after Cursor's internal chat migration (`hasMigratedComposerData`). Previously, if the active chat was not in the migrated `allComposers` list (old chats get dropped during migration), the command silently returned nothing. Now a minimal composer summary is created from the active panel ID so attachment always proceeds.
+- `getRootComposers` updated to recognise the new `type: "head"` field that Cursor uses after migration, replacing the old `subagentInfo` presence check.
+
 ## [0.3.9] - 2026-03-13
 
 ### Changed
