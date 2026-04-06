@@ -55,11 +55,19 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
         // After Cursor's chat migration allComposers only has ~10 recent entries.
         // Older attached chats are no longer listed there, so we fall back to a
         // synthetic summary built from whatever we cached at attach time.
-        const composer: CursorComposerSummary = liveComposer ?? {
-          composerId: entry.composerId,
-          name: entry.cachedName,
-          createdAt: new Date(entry.createdAt).getTime(),
-        };
+        const resolvedName =
+          entry.customName ??
+          liveComposer?.name ??
+          entry.cachedName ??
+          `#${entry.composerId.slice(0, 8)}`;
+
+        const composer: CursorComposerSummary = liveComposer
+          ? { ...liveComposer, name: resolvedName }
+          : {
+              composerId: entry.composerId,
+              name: resolvedName,
+              createdAt: new Date(entry.createdAt).getTime(),
+            };
 
         // Keep cachedName in sync so it survives future migrations.
         if (liveComposer?.name && liveComposer.name !== entry.cachedName) {
@@ -233,6 +241,35 @@ export function registerTreeViewCommands(
         );
         if (!shown) {
           void vscode.window.showInformationMessage(t('messages.commitDiff.noChanges'));
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cursorBranchChat.renameChat',
+      async (item: BranchChatTreeItem) => {
+        const currentName = item.entry.customName ?? item.composer.name ?? '';
+        const newName = await vscode.window.showInputBox({
+          prompt: t('messages.renameChat.inputPrompt'),
+          placeHolder: t('messages.renameChat.inputPlaceholder'),
+          value: currentName,
+          valueSelection: [0, currentName.length],
+        });
+
+        if (newName === undefined) {
+          return;
+        }
+
+        const trimmed = newName.trim() || undefined;
+        updateEntry(context.globalState, item.entry.id, { customName: trimmed });
+        provider.refresh();
+
+        if (trimmed) {
+          void vscode.window.showInformationMessage(
+            t('messages.renameChat.success', { name: trimmed })
+          );
         }
       }
     )

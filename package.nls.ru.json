@@ -10,6 +10,7 @@
   "commands.archiveChat.title": "Убрать из чатов веток",
   "commands.showCommitDiff.title": "Показать изменения с момента создания чата",
   "commands.showBranchDiff.title": "Показать все изменения ветки (от базовой ветки)",
+  "commands.renameChat.title": "Переименовать чат",
   "views.container.title": "Чаты веток",
   "views.branchChats.name": "Чаты веток"
 }

@@ -102,6 +102,9 @@ export function activate(context: vscode.ExtensionContext): void {
       });
 
       provider.refresh();
+      // Cursor may write composerHeaders asynchronously — refresh again after a
+      // short delay so the name is picked up once the DB is updated.
+      setTimeout(() => provider.refresh(), 2500);
       void vscode.window.showInformationMessage(
         t('messages.attachCurrent.success', {
           name: composer.name ?? t('chat.untitled'),

@@ -10,6 +10,7 @@
   "commands.archiveChat.title": "Remove From Branch Chats",
   "commands.showCommitDiff.title": "Show Changes Since Chat Was Created",
   "commands.showBranchDiff.title": "Show All Branch Changes (vs base branch)",
+  "commands.renameChat.title": "Rename Chat",
   "views.container.title": "Branch Chats",
   "views.branchChats.name": "Branch Chats"
 }

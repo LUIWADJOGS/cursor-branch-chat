@@ -32,7 +32,10 @@ type TranslationKey =
   | 'messages.commitDiff.noChanges'
   | 'messages.commitDiff.title'
   | 'messages.branchDiff.noBase'
-  | 'messages.branchDiff.header';
+  | 'messages.branchDiff.header'
+  | 'messages.renameChat.inputPrompt'
+  | 'messages.renameChat.inputPlaceholder'
+  | 'messages.renameChat.success';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -72,6 +75,9 @@ const en: Translations = {
   'messages.commitDiff.title': 'Showing changes for "{name}"',
   'messages.branchDiff.noBase': 'Could not find base branch (main / master / develop). Make sure the base branch exists locally.',
   'messages.branchDiff.header': 'All changes on branch "{branch}" vs base',
+  'messages.renameChat.inputPrompt': 'Set a custom name for this chat',
+  'messages.renameChat.inputPlaceholder': 'e.g. Fix login flow',
+  'messages.renameChat.success': 'Renamed chat to "{name}".',
 };
 
 const ru: Translations = {
@@ -111,6 +117,9 @@ const ru: Translations = {
   'messages.commitDiff.title': 'Изменения для чата "{name}"',
   'messages.branchDiff.noBase': 'Не удалось найти базовую ветку (main / master / develop). Убедись, что она доступна локально.',
   'messages.branchDiff.header': 'Все изменения на ветке "{branch}" относительно базы',
+  'messages.renameChat.inputPrompt': 'Задай своё название для этого чата',
+  'messages.renameChat.inputPlaceholder': 'например, Фикс логина',
+  'messages.renameChat.success': 'Чат переименован в "{name}".',
 };
 
 const translations = isRussianLanguage() ? ru : en;

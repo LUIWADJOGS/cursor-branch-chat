@@ -5,29 +5,95 @@ import * as path from 'path';
 import type { CursorComposerData, CursorComposerSummary } from '../types/branchChat';
 
 const COMPOSER_STORAGE_KEY = 'composer.composerData';
+const COMPOSER_HEADERS_KEY = 'composer.composerHeaders';
 const PYTHON_CANDIDATES = ['python3', 'python'];
+
+let _log: vscode.OutputChannel | undefined;
+function log(msg: string): void {
+  if (!_log) {
+    _log = vscode.window.createOutputChannel('Branch Chats Debug');
+  }
+  _log.appendLine(`[${new Date().toISOString()}] ${msg}`);
+}
 
 export async function getComposerData(
   context: vscode.ExtensionContext
 ): Promise<CursorComposerData | null> {
   const dbPath = getWorkspaceDatabasePath(context);
+  log(`workspaceDb: ${dbPath ?? 'NULL'}`);
+  log(`storageUri: ${context.storageUri?.fsPath ?? 'NULL'}`);
+  log(`globalStorageUri: ${context.globalStorageUri?.fsPath ?? 'NULL'}`);
+
   if (!dbPath) {
+    log('getComposerData: no workspace DB, returning null');
     return null;
   }
 
-  const raw = await readCursorStorageValue(dbPath, COMPOSER_STORAGE_KEY);
+  const [raw, globalRaw] = await Promise.all([
+    readCursorStorageValue(dbPath, COMPOSER_STORAGE_KEY),
+    readGlobalComposerHeaders(context),
+  ]);
+
+  log(`workspace raw length: ${raw?.length ?? 'NULL'}`);
+  log(`global headers count: ${globalRaw.length}`);
+
   if (!raw) {
+    log('getComposerData: workspace composerData is null, returning null');
     return null;
   }
 
   try {
     const parsed = JSON.parse(raw) as CursorComposerData;
-    if (!parsed || !Array.isArray(parsed.allComposers)) {
+    if (!parsed) {
+      log('getComposerData: parsed is falsy, returning null');
       return null;
     }
+
+    // After Cursor's migration allComposers may be absent entirely — treat as empty.
+    if (!Array.isArray(parsed.allComposers)) {
+      parsed.allComposers = [];
+    }
+
+    log(`workspace allComposers count: ${parsed.allComposers.length}`);
+
+    // Merge global headers so names from other workspaces / migrated chats are available.
+    if (globalRaw && globalRaw.length > 0) {
+      const knownIds = new Set(parsed.allComposers.map((c) => c.composerId));
+      for (const hdr of globalRaw) {
+        if (!knownIds.has(hdr.composerId)) {
+          parsed.allComposers.push(hdr);
+        }
+      }
+    }
+
+    log(`merged allComposers count: ${parsed.allComposers.length}`);
     return parsed;
-  } catch {
+  } catch (e) {
+    log(`getComposerData: parse error: ${e}`);
     return null;
+  }
+}
+
+async function readGlobalComposerHeaders(
+  context: vscode.ExtensionContext
+): Promise<CursorComposerSummary[]> {
+  const globalDbPath = getGlobalDatabasePath(context);
+  log(`globalDb: ${globalDbPath ?? 'NULL'}`);
+  if (!globalDbPath) {
+    return [];
+  }
+
+  try {
+    const raw = await readCursorStorageValue(globalDbPath, COMPOSER_HEADERS_KEY);
+    log(`composerHeaders raw length: ${raw?.length ?? 'NULL'}`);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as { allComposers?: CursorComposerSummary[] };
+    return Array.isArray(parsed.allComposers) ? parsed.allComposers : [];
+  } catch (e) {
+    log(`readGlobalComposerHeaders error: ${e}`);
+    return [];
   }
 }
 
@@ -232,6 +298,29 @@ function getWorkspaceDatabasePath(context: vscode.ExtensionContext): string | nu
   const workspaceStorageRoot = path.dirname(context.storageUri.fsPath);
   const dbPath = path.join(workspaceStorageRoot, 'state.vscdb');
   return existsSync(dbPath) ? dbPath : null;
+}
+
+function getGlobalDatabasePath(context: vscode.ExtensionContext): string | null {
+  // globalStorageUri = .../User/globalStorage/<ext-id>
+  // state.vscdb lives one level up, alongside the extension folder.
+  const globalStorageUri = context.globalStorageUri;
+  if (globalStorageUri) {
+    const dbPath = path.join(path.dirname(globalStorageUri.fsPath), 'state.vscdb');
+    if (existsSync(dbPath)) {
+      return dbPath;
+    }
+  }
+
+  // Fallback: derive from workspace storageUri (.../workspaceStorage/<hash>/<ext-id>)
+  if (context.storageUri) {
+    const userDir = path.resolve(context.storageUri.fsPath, '../../..');
+    const dbPath = path.join(userDir, 'globalStorage', 'state.vscdb');
+    if (existsSync(dbPath)) {
+      return dbPath;
+    }
+  }
+
+  return null;
 }
 
 async function readCursorStorageValue(

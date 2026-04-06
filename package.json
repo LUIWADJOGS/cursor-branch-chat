@@ -2,7 +2,7 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.1",
+  "version": "0.4.4",
   "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {
@@ -85,6 +85,11 @@
         "command": "cursorBranchChat.showBranchDiff",
         "title": "%commands.showBranchDiff.title%",
         "icon": "$(git-branch)"
+      },
+      {
+        "command": "cursorBranchChat.renameChat",
+        "title": "%commands.renameChat.title%",
+        "icon": "$(edit)"
       }
     ],
     "viewsContainers": {
@@ -142,6 +147,10 @@
             },
             {
               "command": "cursorBranchChat.showBranchDiff",
+              "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
+            },
+            {
+              "command": "cursorBranchChat.renameChat",
               "when": "view == branchChats.branchChatsView && (viewItem == entry || viewItem == entry-with-diff)"
             },
             {

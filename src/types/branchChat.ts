@@ -26,6 +26,7 @@ export interface BranchChatEntry {
   promptText?: string;
   startCommitHash?: string;
   cachedName?: string;
+  customName?: string;
   createdAt: string;
   updatedAt: string;
   workspaceFolder: string;
