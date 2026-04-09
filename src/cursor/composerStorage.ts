@@ -100,20 +100,30 @@ async function readGlobalComposerHeaders(
 export async function getSelectedComposerId(
   context: vscode.ExtensionContext
 ): Promise<string | null> {
-  const data = await getComposerData(context);
-  return data?.selectedComposerIds?.[0] ?? data?.lastFocusedComposerIds?.[0] ?? null;
+  const [data, directSelectedId] = await Promise.all([
+    getComposerData(context),
+    readSelectedComposerIdDirectly(context),
+  ]);
+  return (
+    data?.selectedComposerIds?.[0] ??
+    data?.lastFocusedComposerIds?.[0] ??
+    directSelectedId ??
+    null
+  );
 }
 
 export async function getSelectedRootComposer(
   context: vscode.ExtensionContext
 ): Promise<CursorComposerSummary | null> {
-  const [data, activeId] = await Promise.all([
+  const [data, activeId, directSelectedId] = await Promise.all([
     getComposerData(context),
     getActiveComposerId(context),
+    readSelectedComposerIdDirectly(context),
   ]);
 
   const selectedComposerId =
     activeId ??
+    directSelectedId ??
     data?.lastFocusedComposerIds?.[0] ??
     data?.selectedComposerIds?.[0] ??
     null;
@@ -141,6 +151,35 @@ export async function getSelectedRootComposer(
   }
 
   return selectedComposer;
+}
+
+async function readSelectedComposerIdDirectly(
+  context: vscode.ExtensionContext
+): Promise<string | null> {
+  const dbPath = getWorkspaceDatabasePath(context);
+  if (!dbPath) {
+    return null;
+  }
+
+  try {
+    const raw = await readCursorStorageValue(dbPath, COMPOSER_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as {
+      selectedComposerIds?: string[];
+      lastFocusedComposerIds?: string[];
+    };
+    const selected =
+      parsed.selectedComposerIds?.[0] ??
+      parsed.lastFocusedComposerIds?.[0] ??
+      null;
+    log(`directSelectedComposerId: ${selected ?? 'NULL'}`);
+    return selected;
+  } catch (e) {
+    log(`readSelectedComposerIdDirectly error: ${e}`);
+    return null;
+  }
 }
 
 export function getRootComposers(data: CursorComposerData | null): CursorComposerSummary[] {
@@ -259,11 +298,41 @@ export async function getActiveComposerId(
 
   try {
     const paneState = JSON.parse(paneStateRaw) as Record<string, unknown>;
-    const viewId = Object.keys(paneState)[0];
-    if (!viewId?.startsWith('workbench.panel.aichat.view.')) {
+    const viewEntries = Object.entries(paneState).filter(([viewId]) =>
+      viewId.startsWith('workbench.panel.aichat.view.')
+    );
+    if (viewEntries.length === 0) {
       return null;
     }
-    return viewId.slice('workbench.panel.aichat.view.'.length);
+
+    const composerIds = viewEntries.map(([viewId]) =>
+      viewId.slice('workbench.panel.aichat.view.'.length)
+    );
+    if (composerIds.length === 1) {
+      return composerIds[0];
+    }
+
+    // Prefer the chat that's currently selected in composer.composerData.
+    const selectedId = await readSelectedComposerIdDirectly(context);
+    if (selectedId && composerIds.includes(selectedId)) {
+      return selectedId;
+    }
+
+    // If one entry has explicit size metadata, Cursor usually marks the active one with it.
+    const withSize = viewEntries
+      .filter(([, state]) => {
+        if (!state || typeof state !== 'object') {
+          return false;
+        }
+        return typeof (state as { size?: unknown }).size === 'number';
+      })
+      .map(([viewId]) => viewId.slice('workbench.panel.aichat.view.'.length));
+    if (withSize.length === 1) {
+      return withSize[0];
+    }
+
+    // Final fallback.
+    return composerIds[0];
   } catch {
     return null;
   }
