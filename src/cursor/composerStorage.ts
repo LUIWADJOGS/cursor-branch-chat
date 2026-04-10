@@ -100,30 +100,24 @@ async function readGlobalComposerHeaders(
 export async function getSelectedComposerId(
   context: vscode.ExtensionContext
 ): Promise<string | null> {
-  const [data, directSelectedId] = await Promise.all([
-    getComposerData(context),
-    readSelectedComposerIdDirectly(context),
-  ]);
-  return (
-    data?.selectedComposerIds?.[0] ??
-    data?.lastFocusedComposerIds?.[0] ??
-    directSelectedId ??
-    null
-  );
+  const focused = await resolveFocusedComposerId(context);
+  if (focused) {
+    return focused;
+  }
+  const data = await getComposerData(context);
+  return data?.lastFocusedComposerIds?.[0] ?? data?.selectedComposerIds?.[0] ?? null;
 }
 
 export async function getSelectedRootComposer(
   context: vscode.ExtensionContext
 ): Promise<CursorComposerSummary | null> {
-  const [data, activeId, directSelectedId] = await Promise.all([
+  const [data, focusedId] = await Promise.all([
     getComposerData(context),
-    getActiveComposerId(context),
-    readSelectedComposerIdDirectly(context),
+    resolveFocusedComposerId(context),
   ]);
 
   const selectedComposerId =
-    activeId ??
-    directSelectedId ??
+    focusedId ??
     data?.lastFocusedComposerIds?.[0] ??
     data?.selectedComposerIds?.[0] ??
     null;
@@ -153,9 +147,11 @@ export async function getSelectedRootComposer(
   return selectedComposer;
 }
 
-async function readSelectedComposerIdDirectly(
-  context: vscode.ExtensionContext
-): Promise<string | null> {
+/**
+ * Cursor keeps stale composer UUIDs at the front of selectedComposerIds after tabs close.
+ * Prefer ids that still exist in the active panel's composerChatViewPane JSON.
+ */
+async function resolveFocusedComposerId(context: vscode.ExtensionContext): Promise<string | null> {
   const dbPath = getWorkspaceDatabasePath(context);
   if (!dbPath) {
     return null;
@@ -170,15 +166,96 @@ async function readSelectedComposerIdDirectly(
       selectedComposerIds?: string[];
       lastFocusedComposerIds?: string[];
     };
-    const selected =
-      parsed.selectedComposerIds?.[0] ??
-      parsed.lastFocusedComposerIds?.[0] ??
-      null;
-    log(`directSelectedComposerId: ${selected ?? 'NULL'}`);
-    return selected;
+    const paneInfo = await readActivePaneComposerInfo(dbPath);
+    const orderedOpen = paneInfo.orderedIds;
+
+    if (orderedOpen.length === 0) {
+      const stale =
+        parsed.lastFocusedComposerIds?.[0] ?? parsed.selectedComposerIds?.[0] ?? null;
+      log(`resolveFocusedComposerId (no open pane): ${stale ?? 'NULL'}`);
+      return stale;
+    }
+
+    if (orderedOpen.length === 1) {
+      log(`resolveFocusedComposerId (single tab): ${orderedOpen[0]}`);
+      return orderedOpen[0];
+    }
+
+    const openSet = new Set(orderedOpen);
+
+    for (const id of parsed.lastFocusedComposerIds ?? []) {
+      if (openSet.has(id)) {
+        log(`resolveFocusedComposerId (lastFocused ∩ open): ${id}`);
+        return id;
+      }
+    }
+    for (const id of parsed.selectedComposerIds ?? []) {
+      if (openSet.has(id)) {
+        log(`resolveFocusedComposerId (selected ∩ open): ${id}`);
+        return id;
+      }
+    }
+
+    const sized = orderedOpen.filter((id) => paneInfo.sizeById.get(id) !== undefined);
+    if (sized.length === 1) {
+      log(`resolveFocusedComposerId (unique size): ${sized[0]}`);
+      return sized[0];
+    }
+
+    const lastInPane = orderedOpen[orderedOpen.length - 1];
+    log(`resolveFocusedComposerId (last tab in pane order): ${lastInPane}`);
+    return lastInPane;
   } catch (e) {
-    log(`readSelectedComposerIdDirectly error: ${e}`);
+    log(`resolveFocusedComposerId error: ${e}`);
     return null;
+  }
+}
+
+type ActivePaneComposerInfo = {
+  orderedIds: string[];
+  sizeById: Map<string, number>;
+};
+
+async function readActivePaneComposerInfo(dbPath: string): Promise<ActivePaneComposerInfo> {
+  const empty: ActivePaneComposerInfo = { orderedIds: [], sizeById: new Map() };
+
+  const activePanelId = await readCursorStorageValue(dbPath, 'workbench.auxiliarybar.activepanelid');
+  if (!activePanelId?.startsWith('workbench.panel.aichat.')) {
+    return empty;
+  }
+
+  const panelSuffix = activePanelId.slice('workbench.panel.aichat.'.length);
+  const paneStateRaw = await readCursorStorageValue(
+    dbPath,
+    `workbench.panel.composerChatViewPane.${panelSuffix}`
+  );
+  if (!paneStateRaw) {
+    return empty;
+  }
+
+  try {
+    const paneState = JSON.parse(paneStateRaw) as Record<string, unknown>;
+    const orderedIds: string[] = [];
+    const sizeById = new Map<string, number>();
+
+    for (const viewId of Object.keys(paneState)) {
+      if (!viewId.startsWith('workbench.panel.aichat.view.')) {
+        continue;
+      }
+      const composerId = viewId.slice('workbench.panel.aichat.view.'.length);
+      orderedIds.push(composerId);
+      const state = paneState[viewId];
+      if (state && typeof state === 'object') {
+        const size = (state as { size?: unknown }).size;
+        if (typeof size === 'number') {
+          sizeById.set(composerId, size);
+        }
+      }
+    }
+
+    return { orderedIds, sizeById };
+  } catch {
+    return empty;
   }
 }
 
@@ -212,8 +289,7 @@ export async function waitForNewComposer(
   while (Date.now() < deadline) {
     const data = await getComposerData(context);
     const rootComposers = getRootComposers(data);
-    const selectedComposerId =
-      data?.selectedComposerIds?.[0] ?? data?.lastFocusedComposerIds?.[0] ?? null;
+    const selectedComposerId = await resolveFocusedComposerId(context);
 
     if (selectedComposerId && selectedComposerId !== previousComposerId) {
       const selectedComposer = rootComposers.find(
@@ -277,65 +353,18 @@ export async function selectComposer(
 export async function getActiveComposerId(
   context: vscode.ExtensionContext
 ): Promise<string | null> {
+  return resolveFocusedComposerId(context);
+}
+
+export async function getActivePaneComposerIds(
+  context: vscode.ExtensionContext
+): Promise<string[]> {
   const dbPath = getWorkspaceDatabasePath(context);
   if (!dbPath) {
-    return null;
+    return [];
   }
-
-  const activePanelId = await readCursorStorageValue(dbPath, 'workbench.auxiliarybar.activepanelid');
-  if (!activePanelId?.startsWith('workbench.panel.aichat.')) {
-    return null;
-  }
-
-  const panelSuffix = activePanelId.slice('workbench.panel.aichat.'.length);
-  const paneStateRaw = await readCursorStorageValue(
-    dbPath,
-    `workbench.panel.composerChatViewPane.${panelSuffix}`
-  );
-  if (!paneStateRaw) {
-    return null;
-  }
-
-  try {
-    const paneState = JSON.parse(paneStateRaw) as Record<string, unknown>;
-    const viewEntries = Object.entries(paneState).filter(([viewId]) =>
-      viewId.startsWith('workbench.panel.aichat.view.')
-    );
-    if (viewEntries.length === 0) {
-      return null;
-    }
-
-    const composerIds = viewEntries.map(([viewId]) =>
-      viewId.slice('workbench.panel.aichat.view.'.length)
-    );
-    if (composerIds.length === 1) {
-      return composerIds[0];
-    }
-
-    // Prefer the chat that's currently selected in composer.composerData.
-    const selectedId = await readSelectedComposerIdDirectly(context);
-    if (selectedId && composerIds.includes(selectedId)) {
-      return selectedId;
-    }
-
-    // If one entry has explicit size metadata, Cursor usually marks the active one with it.
-    const withSize = viewEntries
-      .filter(([, state]) => {
-        if (!state || typeof state !== 'object') {
-          return false;
-        }
-        return typeof (state as { size?: unknown }).size === 'number';
-      })
-      .map(([viewId]) => viewId.slice('workbench.panel.aichat.view.'.length));
-    if (withSize.length === 1) {
-      return withSize[0];
-    }
-
-    // Final fallback.
-    return composerIds[0];
-  } catch {
-    return null;
-  }
+  const info = await readActivePaneComposerInfo(dbPath);
+  return info.orderedIds;
 }
 
 function reorderComposerIds(

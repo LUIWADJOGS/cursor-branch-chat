@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const branch = await getCurrentBranch(folder);
-      const composer = await getSelectedRootComposer(context);
+      let composer = await getSelectedRootComposer(context);
       if (!composer) {
         void vscode.window.showWarningMessage(t('messages.attachCurrent.openChatFirst'));
         return;

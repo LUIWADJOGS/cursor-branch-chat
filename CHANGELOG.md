@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.5] - 2026-03-13
+## [0.4.7] - 2026-04-10
+
+### Fixed
+
+- **Active chat detection:** `selectedComposerIds[0]` often stays a stale UUID after closing tabs. The extension now intersects `lastFocusedComposerIds` / `selectedComposerIds` with composer IDs still present in the active panel’s `composerChatViewPane` state, so attach/open use the tab that is actually open.
+
+## [0.4.6] - 2026-03-13
 
 ### Fixed
 

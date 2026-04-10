@@ -8,6 +8,7 @@ type TranslationKey =
   | 'chat.openTitle'
   | 'messages.attachCurrent.openWorkspace'
   | 'messages.attachCurrent.openChatFirst'
+  | 'messages.attachCurrent.pickPrompt'
   | 'messages.attachCurrent.success'
   | 'messages.copyPrompt.missing'
   | 'messages.copyPrompt.success'
@@ -49,6 +50,7 @@ const en: Translations = {
   'messages.attachCurrent.openWorkspace': 'Open a workspace folder first.',
   'messages.attachCurrent.openChatFirst':
     'Open the Cursor chat you want to attach, then run "Attach Current Chat To Branch".',
+  'messages.attachCurrent.pickPrompt': 'Select which open chat to attach to this branch',
   'messages.attachCurrent.success': 'Attached "{name}" to branch "{branch}".',
   'messages.copyPrompt.missing': 'This chat was not created from a tracked prompt.',
   'messages.copyPrompt.success': 'Prompt copied to clipboard.',
@@ -90,6 +92,7 @@ const ru: Translations = {
   'messages.attachCurrent.openWorkspace': 'Сначала открой папку workspace.',
   'messages.attachCurrent.openChatFirst':
     'Открой нужный чат Cursor, затем запусти "Attach Current Chat To Branch".',
+  'messages.attachCurrent.pickPrompt': 'Выбери, какой открытый чат привязать к этой ветке',
   'messages.attachCurrent.success': 'Чат "{name}" привязан к ветке "{branch}".',
   'messages.copyPrompt.missing': 'Этот чат не был создан из отслеживаемого prompt.',
   'messages.copyPrompt.success': 'Prompt скопирован в буфер обмена.',
