@@ -2,7 +2,7 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.7",
+  "version": "0.4.10",
   "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {

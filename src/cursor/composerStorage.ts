@@ -147,9 +147,26 @@ export async function getSelectedRootComposer(
   return selectedComposer;
 }
 
+export async function getOpenComposerIds(
+  context: vscode.ExtensionContext
+): Promise<string[]> {
+  const dbPath = getWorkspaceDatabasePath(context);
+  if (!dbPath) {
+    return [];
+  }
+
+  const embeddedIds = await readEmbeddedAuxBarComposerIds(dbPath);
+  if (embeddedIds.length > 0) {
+    return embeddedIds;
+  }
+
+  const paneInfo = await readActivePaneComposerInfo(dbPath);
+  return paneInfo.orderedIds;
+}
+
 /**
- * Cursor keeps stale composer UUIDs at the front of selectedComposerIds after tabs close.
- * Prefer ids that still exist in the active panel's composerChatViewPane JSON.
+ * Prefer the active embedded-aux-bar editor state on newer Cursor builds.
+ * Fall back to the older composer pane state when that metadata is unavailable.
  */
 async function resolveFocusedComposerId(context: vscode.ExtensionContext): Promise<string | null> {
   const dbPath = getWorkspaceDatabasePath(context);
@@ -158,6 +175,12 @@ async function resolveFocusedComposerId(context: vscode.ExtensionContext): Promi
   }
 
   try {
+    const embeddedComposerIds = await readEmbeddedAuxBarComposerIds(dbPath);
+    if (embeddedComposerIds.length > 0) {
+      log(`resolveFocusedComposerId (embedded aux bar): ${embeddedComposerIds[0]}`);
+      return embeddedComposerIds[0];
+    }
+
     const raw = await readCursorStorageValue(dbPath, COMPOSER_STORAGE_KEY);
     if (!raw) {
       return null;
@@ -209,6 +232,102 @@ async function resolveFocusedComposerId(context: vscode.ExtensionContext): Promi
     log(`resolveFocusedComposerId error: ${e}`);
     return null;
   }
+}
+
+type EmbeddedAuxBarEditorState = {
+  activeGroup?: number;
+  mostRecentActiveGroups?: number[];
+  serializedGrid?: {
+    root?: EmbeddedAuxBarGridNode;
+  };
+};
+
+type EmbeddedAuxBarGridNode =
+  | {
+      type?: 'branch';
+      data?: EmbeddedAuxBarGridNode[];
+    }
+  | {
+      type?: 'leaf';
+      data?: {
+        id?: number;
+        editors?: Array<{
+          id?: string;
+          value?: string;
+        }>;
+        mru?: number[];
+      };
+    };
+
+async function readEmbeddedAuxBarComposerIds(dbPath: string): Promise<string[]> {
+  const raw = await readCursorStorageValue(dbPath, 'workbench.parts.embeddedAuxBarEditor.state');
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const state = JSON.parse(raw) as EmbeddedAuxBarEditorState;
+    const activeGroupId =
+      typeof state.activeGroup === 'number'
+        ? state.activeGroup
+        : state.mostRecentActiveGroups?.find((groupId): groupId is number => typeof groupId === 'number');
+    if (activeGroupId === undefined) {
+      return [];
+    }
+
+    const activeLeaf = findEmbeddedAuxBarLeafById(state.serializedGrid?.root, activeGroupId);
+    const editors = activeLeaf?.data?.editors;
+    if (!Array.isArray(editors) || editors.length === 0) {
+      return [];
+    }
+
+    const preferredIndexes = [
+      ...(activeLeaf?.data?.mru ?? []),
+      ...editors.map((_, index) => index),
+    ].filter((index, position, all) => Number.isInteger(index) && all.indexOf(index) === position);
+
+    const composerIds: string[] = [];
+    for (const index of preferredIndexes) {
+      const editor = editors[index];
+      if (editor?.id !== 'workbench.editor.composer.input' || !editor.value) {
+        continue;
+      }
+
+      const parsed = JSON.parse(editor.value) as { composerId?: unknown };
+      if (typeof parsed.composerId === 'string' && parsed.composerId) {
+        composerIds.push(parsed.composerId);
+      }
+    }
+
+    return composerIds;
+  } catch (e) {
+    log(`readEmbeddedAuxBarComposerIds error: ${e}`);
+    return [];
+  }
+}
+
+function findEmbeddedAuxBarLeafById(
+  node: EmbeddedAuxBarGridNode | undefined,
+  targetId: number
+): Extract<EmbeddedAuxBarGridNode, { type?: 'leaf' }> | null {
+  if (!node) {
+    return null;
+  }
+
+  if (node.type === 'leaf') {
+    return node.data?.id === targetId ? node : null;
+  }
+
+  if (node.type === 'branch' && Array.isArray(node.data)) {
+    for (const child of node.data) {
+      const match = findEmbeddedAuxBarLeafById(child, targetId);
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  return null;
 }
 
 type ActivePaneComposerInfo = {
@@ -316,76 +435,10 @@ export async function waitForNewComposer(
   return null;
 }
 
-export async function selectComposer(
-  context: vscode.ExtensionContext,
-  composerId: string
-): Promise<boolean> {
-  const dbPath = getWorkspaceDatabasePath(context);
-  const data = await getComposerData(context);
-  if (!dbPath || !data) {
-    return false;
-  }
-
-  const nextData: CursorComposerData = {
-    ...data,
-    selectedComposerIds: reorderComposerIds(
-      composerId,
-      data.selectedComposerIds,
-      data.lastFocusedComposerIds
-    ),
-    lastFocusedComposerIds: reorderComposerIds(
-      composerId,
-      data.lastFocusedComposerIds,
-      data.selectedComposerIds
-    ),
-  };
-
-  const updatedSelection = await writeCursorStorageValue(
-    dbPath,
-    COMPOSER_STORAGE_KEY,
-    JSON.stringify(nextData)
-  );
-  const updatedPaneState = await rewriteComposerPaneViewState(dbPath, composerId);
-  const updatedActivePanel = await setActiveComposerPanel(dbPath, composerId);
-  return updatedSelection || updatedPaneState || updatedActivePanel;
-}
-
 export async function getActiveComposerId(
   context: vscode.ExtensionContext
 ): Promise<string | null> {
   return resolveFocusedComposerId(context);
-}
-
-export async function getActivePaneComposerIds(
-  context: vscode.ExtensionContext
-): Promise<string[]> {
-  const dbPath = getWorkspaceDatabasePath(context);
-  if (!dbPath) {
-    return [];
-  }
-  const info = await readActivePaneComposerInfo(dbPath);
-  return info.orderedIds;
-}
-
-function reorderComposerIds(
-  primaryComposerId: string,
-  ...composerIdGroups: Array<string[] | undefined>
-): string[] {
-  const orderedComposerIds = [primaryComposerId];
-
-  for (const group of composerIdGroups) {
-    if (!group) {
-      continue;
-    }
-
-    for (const composerId of group) {
-      if (!orderedComposerIds.includes(composerId)) {
-        orderedComposerIds.push(composerId);
-      }
-    }
-  }
-
-  return orderedComposerIds;
 }
 
 function getWorkspaceDatabasePath(context: vscode.ExtensionContext): string | null {
@@ -437,118 +490,6 @@ async function readCursorStorageValue(
   for (const candidate of PYTHON_CANDIDATES) {
     try {
       const stdout = await execFileAsync(candidate, [ '-c', script, dbPath, key ]);
-      return stdout.trim() || null;
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
-}
-
-async function writeCursorStorageValue(
-  dbPath: string,
-  key: string,
-  value: string
-): Promise<boolean> {
-  const script = [
-    'import sqlite3, sys',
-    'db_path, key, value = sys.argv[1], sys.argv[2], sys.argv[3]',
-    'conn = sqlite3.connect(db_path)',
-    'cur = conn.cursor()',
-    "cur.execute(\"UPDATE ItemTable SET value = ? WHERE [key] = ?\", (value, key))",
-    'conn.commit()',
-    'print(cur.rowcount)',
-  ].join('\n');
-
-  for (const candidate of PYTHON_CANDIDATES) {
-    try {
-      const stdout = await execFileAsync(candidate, [ '-c', script, dbPath, key, value ]);
-      return Number(stdout.trim()) > 0;
-    } catch {
-      continue;
-    }
-  }
-
-  return false;
-}
-
-async function rewriteComposerPaneViewState(
-  dbPath: string,
-  composerId: string
-): Promise<boolean> {
-  const targetViewId = `workbench.panel.aichat.view.${composerId}`;
-  const prefix = 'workbench.panel.composerChatViewPane.';
-  const script = [
-    'import json, sqlite3, sys',
-    'db_path, prefix, target_view_id = sys.argv[1], sys.argv[2], sys.argv[3]',
-    'conn = sqlite3.connect(db_path)',
-    'cur = conn.cursor()',
-    "rows = cur.execute(\"SELECT [key], value FROM ItemTable WHERE [key] LIKE ?\", (prefix + '%',)).fetchall()",
-    'updated = 0',
-    'for key, value in rows:',
-    '    try:',
-    '        parsed = json.loads(value) if value else {}',
-    '    except Exception:',
-    '        parsed = {}',
-    '    first_value = next(iter(parsed.values()), {"collapsed": False, "isHidden": False, "size": 1348})',
-    '    next_value = json.dumps({target_view_id: first_value}, separators=(\",\", \":\"))',
-    '    cur.execute("UPDATE ItemTable SET value = ? WHERE [key] = ?", (next_value, key))',
-    '    updated += cur.rowcount',
-    'conn.commit()',
-    'print(updated)',
-  ].join('\n');
-
-  for (const candidate of PYTHON_CANDIDATES) {
-    try {
-      const stdout = await execFileAsync(candidate, ['-c', script, dbPath, prefix, targetViewId]);
-      return Number(stdout.trim()) > 0;
-    } catch {
-      continue;
-    }
-  }
-
-  return false;
-}
-
-async function setActiveComposerPanel(
-  dbPath: string,
-  composerId: string
-): Promise<boolean> {
-  const paneKey = await findPaneKeyForComposer(dbPath, composerId);
-  if (!paneKey) {
-    return false;
-  }
-
-  const panelId = `workbench.panel.aichat.${paneKey}`;
-  return writeCursorStorageValue(dbPath, 'workbench.auxiliarybar.activepanelid', panelId);
-}
-
-async function findPaneKeyForComposer(
-  dbPath: string,
-  composerId: string
-): Promise<string | null> {
-  const targetViewId = `workbench.panel.aichat.view.${composerId}`;
-  const prefix = 'workbench.panel.composerChatViewPane.';
-  const script = [
-    'import json, sqlite3, sys',
-    'db_path, prefix, target_view_id = sys.argv[1], sys.argv[2], sys.argv[3]',
-    'conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)',
-    'cur = conn.cursor()',
-    "rows = cur.execute(\"SELECT [key], value FROM ItemTable WHERE [key] LIKE ?\", (prefix + '%',)).fetchall()",
-    'for key, value in rows:',
-    '    try:',
-    '        parsed = json.loads(value) if value else {}',
-    '    except Exception:',
-    '        parsed = {}',
-    '    if target_view_id in parsed:',
-    '        print(key[len(prefix):])',
-    '        break',
-  ].join('\n');
-
-  for (const candidate of PYTHON_CANDIDATES) {
-    try {
-      const stdout = await execFileAsync(candidate, ['-c', script, dbPath, prefix, targetViewId]);
       return stdout.trim() || null;
     } catch {
       continue;

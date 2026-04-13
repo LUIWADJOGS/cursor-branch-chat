@@ -8,7 +8,9 @@ import { BranchChatsProvider, registerTreeViewCommands } from './views/branchCha
 import { registerGitBranchWatcher } from './watchers/gitBranchWatcher';
 import { t } from './i18n';
 import {
+  getActiveComposerId,
   getComposerData,
+  getOpenComposerIds,
   getRootComposers,
   getSelectedComposerId,
   getSelectedRootComposer,
@@ -85,7 +87,65 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const branch = await getCurrentBranch(folder);
+      const [selectedComposerId, activeComposerId, openComposerIds, composerData] = await Promise.all([
+        getSelectedComposerId(context),
+        getActiveComposerId(context),
+        getOpenComposerIds(context),
+        getComposerData(context),
+      ]);
+      const allComposerById = new Map(
+        (composerData?.allComposers ?? []).map((item) => [item.composerId, item])
+      );
+      const composerById = new Map(
+        getRootComposers(composerData).map((item) => [item.composerId, item])
+      );
+
+      const candidateIds = Array.from(
+        new Set(
+          openComposerIds
+            .map((id) => allComposerById.get(id)?.subagentInfo?.parentComposerId ?? id)
+            .concat([selectedComposerId, activeComposerId].filter((id): id is string => Boolean(id)))
+        )
+      );
+
       let composer = await getSelectedRootComposer(context);
+      if (openComposerIds.length > 1 || candidateIds.length > 1) {
+        const pick = await vscode.window.showQuickPick(
+          candidateIds.map((id) => {
+            const item = composerById.get(id);
+            const isOpen = openComposerIds.some(
+              (openId) => (allComposerById.get(openId)?.subagentInfo?.parentComposerId ?? openId) === id
+            );
+            const source = [
+              isOpen ? 'open' : null,
+              id === selectedComposerId ? 'selected' : null,
+              id === activeComposerId ? 'active' : null,
+            ]
+              .filter((part): part is string => Boolean(part))
+              .join('+');
+            return {
+              label: item?.name ?? `#${id.slice(0, 8)}`,
+              description: source,
+              detail: item?.subtitle,
+              composerId: id,
+            };
+          }),
+          {
+            placeHolder: t('messages.attachCurrent.pickPrompt'),
+            matchOnDescription: true,
+            matchOnDetail: true,
+          }
+        );
+
+        if (!pick) {
+          return;
+        }
+
+        composer =
+          composerById.get(pick.composerId) ??
+          { composerId: pick.composerId, name: pick.label, createdAt: Date.now() };
+      }
+
       if (!composer) {
         void vscode.window.showWarningMessage(t('messages.attachCurrent.openChatFirst'));
         return;
