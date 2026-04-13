@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.10] - 2026-04-13
-
-### Fixed
-
-- **Attach Current Chat:** when several Cursor chat tabs are open, the extension now offers a picker for the actually open chats in the active AI tab group instead of silently choosing the wrong one from stale internal state.
-
 ## [0.4.9] - 2026-04-13
 
 ### Fixed
