@@ -36,7 +36,14 @@ type TranslationKey =
   | 'messages.branchDiff.header'
   | 'messages.renameChat.inputPrompt'
   | 'messages.renameChat.inputPlaceholder'
-  | 'messages.renameChat.success';
+  | 'messages.renameChat.success'
+  | 'messages.attachClaude.notInstalled'
+  | 'messages.attachClaude.noSessions'
+  | 'messages.attachClaude.pickPrompt'
+  | 'messages.attachClaude.success'
+  | 'messages.openClaude.failed'
+  | 'messages.openClaude.notFound'
+  | 'chat.claudeBadge';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -80,6 +87,15 @@ const en: Translations = {
   'messages.renameChat.inputPrompt': 'Set a custom name for this chat',
   'messages.renameChat.inputPlaceholder': 'e.g. Fix login flow',
   'messages.renameChat.success': 'Renamed chat to "{name}".',
+  'messages.attachClaude.notInstalled':
+    'Install the Claude Code extension (anthropic.claude-code) to attach Claude chats.',
+  'messages.attachClaude.noSessions':
+    'No Claude sessions found for this workspace. Open Claude Code and send at least one message first.',
+  'messages.attachClaude.pickPrompt': 'Select Claude session to attach to this branch',
+  'messages.attachClaude.success': 'Attached Claude chat "{name}" to branch "{branch}".',
+  'messages.openClaude.failed': 'Could not open Claude chat "{name}".',
+  'messages.openClaude.notFound': 'Claude session file not found on disk.',
+  'chat.claudeBadge': 'Claude',
 };
 
 const ru: Translations = {
@@ -123,6 +139,15 @@ const ru: Translations = {
   'messages.renameChat.inputPrompt': 'Задай своё название для этого чата',
   'messages.renameChat.inputPlaceholder': 'например, Фикс логина',
   'messages.renameChat.success': 'Чат переименован в "{name}".',
+  'messages.attachClaude.notInstalled':
+    'Установи расширение Claude Code (anthropic.claude-code), чтобы привязывать чаты Claude.',
+  'messages.attachClaude.noSessions':
+    'Для этого workspace не найдено сессий Claude. Открой Claude Code и отправь хотя бы одно сообщение.',
+  'messages.attachClaude.pickPrompt': 'Выбери сессию Claude для привязки к ветке',
+  'messages.attachClaude.success': 'Чат Claude "{name}" привязан к ветке "{branch}".',
+  'messages.openClaude.failed': 'Не удалось открыть чат Claude "{name}".',
+  'messages.openClaude.notFound': 'Файл сессии Claude не найден на диске.',
+  'chat.claudeBadge': 'Claude',
 };
 
 const translations = isRussianLanguage() ? ru : en;

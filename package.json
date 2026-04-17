@@ -2,7 +2,7 @@
   "name": "cursor-branch-chat",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.9",
+  "version": "0.5.2",
   "publisher": "LUIWADJOGS",
   "license": "MIT",
   "repository": {
@@ -43,6 +43,7 @@
     "onView:branchChats.branchChatsView",
     "onCommand:cursorBranchChat.createBranchChat",
     "onCommand:cursorBranchChat.attachCurrentChatToBranch",
+    "onCommand:cursorBranchChat.attachCurrentClaudeChatToBranch",
     "onCommand:cursorBranchChat.showChatsForCurrentBranch"
   ],
   "main": "./out/extension.js",
@@ -50,7 +51,8 @@
     "commands": [
       {
         "command": "cursorBranchChat.createBranchChat",
-        "title": "%commands.createBranchChat.title%"
+        "title": "%commands.createBranchChat.title%",
+        "icon": "$(add)"
       },
       {
         "command": "cursorBranchChat.showChatsForCurrentBranch",
@@ -58,7 +60,13 @@
       },
       {
         "command": "cursorBranchChat.attachCurrentChatToBranch",
-        "title": "%commands.attachCurrentChatToBranch.title%"
+        "title": "%commands.attachCurrentChatToBranch.title%",
+        "icon": "$(link)"
+      },
+      {
+        "command": "cursorBranchChat.attachCurrentClaudeChatToBranch",
+        "title": "%commands.attachCurrentClaudeChatToBranch.title%",
+        "icon": "$(sparkle)"
       },
       {
         "command": "cursorBranchChat.changeChatBranch",
@@ -90,6 +98,10 @@
         "command": "cursorBranchChat.renameChat",
         "title": "%commands.renameChat.title%",
         "icon": "$(edit)"
+      },
+      {
+        "command": "cursorBranchChat.dumpDiagnostics",
+        "title": "Branch Chats: Dump Diagnostics"
       }
     ],
     "viewsContainers": {
@@ -118,6 +130,11 @@
         },
         {
           "command": "cursorBranchChat.attachCurrentChatToBranch",
+          "when": "view == branchChats.branchChatsView",
+          "group": "navigation"
+        },
+        {
+          "command": "cursorBranchChat.attachCurrentClaudeChatToBranch",
           "when": "view == branchChats.branchChatsView",
           "group": "navigation"
         }

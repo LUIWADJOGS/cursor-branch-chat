@@ -11,6 +11,7 @@ node_modules/**
 verification-scenarios.txt
 docs/**
 .cursor/**
+.claude/**
 *.md
 !README.md
 !CHANGELOG.md

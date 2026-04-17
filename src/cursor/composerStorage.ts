@@ -165,10 +165,94 @@ export async function getOpenComposerIds(
 }
 
 /**
- * Prefer the active embedded-aux-bar editor state on newer Cursor builds.
- * Fall back to the older composer pane state when that metadata is unavailable.
+ * Read the focused composerId directly from the VSCode TabGroups API.
+ * Covers "editor mode" composer tabs where Cursor opens the chat as a regular
+ * editor tab. Returns null for aux-bar-hosted chats (those are invisible to
+ * the public tabs API and handled by the SQLite path below).
+ */
+function readFocusedComposerFromTabGroups(): string | null {
+  try {
+    const activeGroup =
+      vscode.window.tabGroups.all.find((g) => g.isActive) ?? vscode.window.tabGroups.activeTabGroup;
+    const activeTab = activeGroup?.activeTab;
+    const candidates: vscode.Tab[] = [];
+    if (activeTab) {
+      candidates.push(activeTab);
+    }
+    for (const group of vscode.window.tabGroups.all) {
+      if (group.activeTab && group.activeTab !== activeTab) {
+        candidates.push(group.activeTab);
+      }
+    }
+
+    for (const tab of candidates) {
+      const id = extractComposerIdFromTab(tab);
+      if (id) {
+        return id;
+      }
+    }
+  } catch (e) {
+    log(`readFocusedComposerFromTabGroups error: ${e}`);
+  }
+  return null;
+}
+
+function extractComposerIdFromTab(tab: vscode.Tab): string | null {
+  const input = tab.input as Record<string, unknown> | undefined;
+  if (!input) {
+    return null;
+  }
+
+  const viewType = typeof input.viewType === 'string' ? input.viewType : '';
+  const isComposerLike =
+    viewType.toLowerCase().includes('composer') || viewType.toLowerCase().includes('aichat');
+
+  const directId = typeof input.composerId === 'string' ? input.composerId : '';
+  if (directId && UUID_RE.test(directId)) {
+    return directId;
+  }
+
+  const uri = input.uri as vscode.Uri | undefined;
+  if (uri) {
+    const fromUri = extractUuid(uri.path) ?? extractUuid(uri.query) ?? extractUuid(uri.fragment);
+    if (fromUri && (isComposerLike || uri.scheme.toLowerCase().includes('composer'))) {
+      return fromUri;
+    }
+  }
+
+  if (isComposerLike) {
+    const idField = typeof input.id === 'string' ? input.id : '';
+    const fromId = extractUuid(idField);
+    if (fromId) {
+      return fromId;
+    }
+  }
+
+  return null;
+}
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+function extractUuid(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const match = UUID_RE.exec(value);
+  return match ? match[0] : null;
+}
+
+/**
+ * Prefer the real-time VSCode API (no SQLite lag when user switches tabs),
+ * then the active embedded-aux-bar editor state on newer Cursor builds,
+ * then the older composer pane state when that metadata is unavailable.
  */
 async function resolveFocusedComposerId(context: vscode.ExtensionContext): Promise<string | null> {
+  const fromTabs = readFocusedComposerFromTabGroups();
+  if (fromTabs) {
+    log(`resolveFocusedComposerId (tabGroups): ${fromTabs}`);
+    return fromTabs;
+  }
+
   const dbPath = getWorkspaceDatabasePath(context);
   if (!dbPath) {
     return null;
@@ -276,10 +360,13 @@ async function readEmbeddedAuxBarComposerIds(dbPath: string): Promise<string[]> 
     }
 
     const activeLeaf = findEmbeddedAuxBarLeafById(state.serializedGrid?.root, activeGroupId);
+    log(`readEmbeddedAuxBarComposerIds: activeGroupId=${activeGroupId}, rootType=${(state.serializedGrid?.root as any)?.type ?? 'NONE'}, leafFound=${!!activeLeaf}`);
     const editors = activeLeaf?.data?.editors;
     if (!Array.isArray(editors) || editors.length === 0) {
+      log(`readEmbeddedAuxBarComposerIds: no editors in leaf (editors=${editors ? 'empty' : 'null'})`);
       return [];
     }
+    log(`readEmbeddedAuxBarComposerIds: ${editors.length} editor(s), ids=[${editors.map(e => e?.id ?? '?').join(', ')}], mru=${JSON.stringify(activeLeaf?.data?.mru)}`);
 
     const preferredIndexes = [
       ...(activeLeaf?.data?.mru ?? []),
@@ -314,11 +401,17 @@ function findEmbeddedAuxBarLeafById(
     return null;
   }
 
-  if (node.type === 'leaf') {
-    return node.data?.id === targetId ? node : null;
+  // Leaf node: data is an object with an id field (not an array).
+  // Check this way instead of relying on node.type because the root
+  // node of VSCode's serialized grid often has no `type` property.
+  if (node.data && !Array.isArray(node.data) && typeof node.data === 'object') {
+    const leaf = node as Extract<EmbeddedAuxBarGridNode, { type?: 'leaf' }>;
+    return leaf.data?.id === targetId ? leaf : null;
   }
 
-  if (node.type === 'branch' && Array.isArray(node.data)) {
+  // Branch node: data is an array of children.  Works whether or not
+  // `type` is set (the root grid node typically omits it).
+  if (Array.isArray(node.data)) {
     for (const child of node.data) {
       const match = findEmbeddedAuxBarLeafById(child, targetId);
       if (match) {
@@ -513,4 +606,101 @@ function execFileAsync(command: string, args: string[]): Promise<string> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Diagnostic: dump all storage keys related to composer/editor/auxbar
+ * so we can see what Cursor actually stores.
+ */
+export async function dumpComposerDiagnostics(
+  context: vscode.ExtensionContext
+): Promise<string> {
+  const lines: string[] = [];
+  const dbPath = getWorkspaceDatabasePath(context);
+  lines.push(`workspaceDb: ${dbPath ?? 'NULL'}`);
+
+  if (!dbPath) {
+    return lines.join('\n');
+  }
+
+  // List all keys that contain composer/auxbar/aichat/editor
+  const listScript = [
+    'import sqlite3, sys, json',
+    'db_path = sys.argv[1]',
+    "conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)",
+    'cur = conn.cursor()',
+    "rows = cur.execute(\"SELECT [key] FROM ItemTable\").fetchall()",
+    "keys = [r[0] for r in rows]",
+    "relevant = [k for k in keys if any(w in k.lower() for w in ['composer', 'auxbar', 'aichat', 'embeddedaux', 'auxiliarybar', 'panel.chat'])]",
+    "print(json.dumps(relevant))",
+  ].join('\n');
+
+  let relevantKeys: string[] = [];
+  for (const candidate of PYTHON_CANDIDATES) {
+    try {
+      const stdout = await execFileAsync(candidate, ['-c', listScript, dbPath]);
+      relevantKeys = JSON.parse(stdout.trim());
+      break;
+    } catch {
+      continue;
+    }
+  }
+
+  lines.push(`\n=== Relevant keys (${relevantKeys.length}) ===`);
+  for (const key of relevantKeys) {
+    lines.push(`  ${key}`);
+  }
+
+  // Dump values for the critical keys
+  const criticalKeys = [
+    'workbench.parts.embeddedAuxBarEditor.state',
+    'composer.composerData',
+    'workbench.auxiliarybar.activepanelid',
+    ...relevantKeys.filter((k) => k.startsWith('workbench.panel.composerChatViewPane.')),
+  ];
+
+  for (const key of [...new Set(criticalKeys)]) {
+    const raw = await readCursorStorageValue(dbPath, key);
+    lines.push(`\n=== ${key} ===`);
+    if (!raw) {
+      lines.push('  (null)');
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      lines.push(JSON.stringify(parsed, null, 2).slice(0, 3000));
+    } catch {
+      lines.push(raw.slice(0, 1000));
+    }
+  }
+
+  // Dump VSCode Tab Groups API (real-time, no SQLite lag)
+  lines.push('\n=== vscode.window.tabGroups ===');
+  try {
+    for (const group of vscode.window.tabGroups.all) {
+      lines.push(`Group viewColumn=${group.viewColumn} isActive=${group.isActive} tabs=${group.tabs.length}`);
+      for (const tab of group.tabs) {
+        const input = tab.input as Record<string, unknown> | undefined;
+        lines.push(`  Tab label=${JSON.stringify(tab.label)} isActive=${tab.isActive} inputType=${input?.constructor?.name ?? typeof input}`);
+        if (input) {
+          const props: Record<string, unknown> = {};
+          for (const key of ['viewType', 'uri', 'composerId', 'id', 'scheme'] as const) {
+            if (key in input) {
+              props[key] = String(input[key]);
+            }
+          }
+          lines.push(`    props=${JSON.stringify(props)}`);
+        }
+      }
+    }
+  } catch (e) {
+    lines.push(`  error: ${e}`);
+  }
+
+  // Check lastActivePart
+  const lastActivePart = await readCursorStorageValue(dbPath, 'workbench.parts.embeddedAuxBarEditor.lastActivePart');
+  lines.push(`\n=== lastActivePart ===`);
+  lines.push(lastActivePart ?? '(null)');
+
+  return lines.join('\n');
 }

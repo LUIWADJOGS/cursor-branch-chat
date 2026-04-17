@@ -4,6 +4,7 @@
   "commands.createBranchChat.title": "Create Branch Chat",
   "commands.showChatsForCurrentBranch.title": "Show Chats For Current Branch",
   "commands.attachCurrentChatToBranch.title": "Attach Current Chat To Branch",
+  "commands.attachCurrentClaudeChatToBranch.title": "Attach Current Claude Chat To Branch",
   "commands.changeChatBranch.title": "Change Chat Branch",
   "commands.openChat.title": "Open in Cursor Chat",
   "commands.copyPrompt.title": "Copy Prompt",

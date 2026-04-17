@@ -4,6 +4,7 @@
   "commands.createBranchChat.title": "Создать branch chat",
   "commands.showChatsForCurrentBranch.title": "Показать чаты текущей ветки",
   "commands.attachCurrentChatToBranch.title": "Привязать текущий чат к ветке",
+  "commands.attachCurrentClaudeChatToBranch.title": "Привязать текущий чат Claude к ветке",
   "commands.changeChatBranch.title": "Сменить ветку чата",
   "commands.openChat.title": "Открыть чат в Cursor",
   "commands.copyPrompt.title": "Скопировать prompt",

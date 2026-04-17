@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-04-17
+
+### Changed
+
+- **Sidebar toolbar:** the title-bar actions are now compact icons instead of text labels. `$(add)` creates a new branch chat, `$(link)` attaches the current Cursor chat, `$(sparkle)` attaches a Claude chat. Hover shows the original title as tooltip.
+
+## [0.5.1] - 2026-04-17
+
+### Fixed
+
+- **Claude project lookup:** workspace paths with `.` (e.g. `germsp-v2.1`) now resolve to the correct Claude folder — `.` is replaced alongside `/` in the slug. Added walk-up / prefix-match fallbacks so subfolder workspaces still find the project root's sessions.
+- **Active Cursor chat detection:** when more than one chat tab is open in the aux bar, the attach command now shows a QuickPick with the auto-detected tab preselected instead of silently picking whichever SQLite reported. Pre-read delay lets Cursor flush its aux-bar state first.
+
+## [0.5.0] - 2026-04-17
+
+### Added
+
+- **Claude Code integration:** new command `Attach Current Claude Chat To Branch` binds a Claude Code session to the current git branch. Sessions are picked from `~/.claude/projects/<workspace-slug>/*.jsonl` (most recent highlighted with ★). Claude entries appear in the sidebar with the `$(sparkle)` icon and a `[Claude]` tag; opening one shows the transcript JSONL and triggers `claude-vscode.editor.openLast`.
+
+### Fixed
+
+- **Active Cursor chat detection:** added a real-time path that reads `vscode.window.tabGroups` first, so the extension no longer misses the currently focused composer when Cursor hasn't flushed its SQLite state yet. The aux-bar and legacy pane fallbacks remain for chats hosted in the side panel.
+
 ## [0.4.9] - 2026-04-13
 
 ### Fixed

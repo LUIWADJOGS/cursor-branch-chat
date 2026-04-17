@@ -8,7 +8,7 @@ import { BranchChatsProvider, registerTreeViewCommands } from './views/branchCha
 import { registerGitBranchWatcher } from './watchers/gitBranchWatcher';
 import { t } from './i18n';
 import {
-  getActiveComposerId,
+  dumpComposerDiagnostics,
   getComposerData,
   getOpenComposerIds,
   getRootComposers,
@@ -16,6 +16,12 @@ import {
   getSelectedRootComposer,
   waitForNewComposer,
 } from './cursor/composerStorage';
+import {
+  getActiveClaudeSession,
+  isClaudeExtensionInstalled,
+  listClaudeSessions,
+  shortenSessionTitle,
+} from './claude/claudeSessions';
 
 export function activate(context: vscode.ExtensionContext): void {
   const getWorkspaceFolder = (): vscode.WorkspaceFolder | undefined =>
@@ -87,63 +93,49 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const branch = await getCurrentBranch(folder);
-      const [selectedComposerId, activeComposerId, openComposerIds, composerData] = await Promise.all([
-        getSelectedComposerId(context),
-        getActiveComposerId(context),
+
+      // Give Cursor a brief moment to flush aux-bar state to SQLite if the
+      // user just switched tabs before running the command.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const [detected, openIds, composerData] = await Promise.all([
+        getSelectedRootComposer(context),
         getOpenComposerIds(context),
         getComposerData(context),
       ]);
-      const allComposerById = new Map(
-        (composerData?.allComposers ?? []).map((item) => [item.composerId, item])
-      );
-      const composerById = new Map(
-        getRootComposers(composerData).map((item) => [item.composerId, item])
-      );
 
-      const candidateIds = Array.from(
-        new Set(
-          openComposerIds
-            .map((id) => allComposerById.get(id)?.subagentInfo?.parentComposerId ?? id)
-            .concat([selectedComposerId, activeComposerId].filter((id): id is string => Boolean(id)))
-        )
-      );
+      let composer = detected;
 
-      let composer = await getSelectedRootComposer(context);
-      if (openComposerIds.length > 1 || candidateIds.length > 1) {
-        const pick = await vscode.window.showQuickPick(
-          candidateIds.map((id) => {
-            const item = composerById.get(id);
-            const isOpen = openComposerIds.some(
-              (openId) => (allComposerById.get(openId)?.subagentInfo?.parentComposerId ?? openId) === id
-            );
-            const source = [
-              isOpen ? 'open' : null,
-              id === selectedComposerId ? 'selected' : null,
-              id === activeComposerId ? 'active' : null,
-            ]
-              .filter((part): part is string => Boolean(part))
-              .join('+');
+      // When the aux bar has more than one composer, SQLite's "focused" flag
+      // lags behind the user's last click. Let the user confirm instead of
+      // silently picking the wrong tab.
+      if (openIds.length > 1) {
+        const rootsById = new Map(
+          getRootComposers(composerData).map((c) => [c.composerId, c])
+        );
+        const detectedId = detected?.composerId;
+        const ordered = [
+          ...(detectedId ? [detectedId] : []),
+          ...openIds.filter((id) => id !== detectedId),
+        ];
+        const picked = await vscode.window.showQuickPick(
+          ordered.map((id, index) => {
+            const summary = rootsById.get(id);
             return {
-              label: item?.name ?? `#${id.slice(0, 8)}`,
-              description: source,
-              detail: item?.subtitle,
+              label: `${index === 0 ? '$(star-full) ' : ''}${summary?.name ?? `#${id.slice(0, 8)}`}`,
+              description: index === 0 ? 'detected' : undefined,
+              detail: summary?.subtitle,
               composerId: id,
             };
           }),
-          {
-            placeHolder: t('messages.attachCurrent.pickPrompt'),
-            matchOnDescription: true,
-            matchOnDetail: true,
-          }
+          { placeHolder: t('messages.attachCurrent.pickPrompt'), matchOnDescription: true }
         );
-
-        if (!pick) {
+        if (!picked) {
           return;
         }
-
         composer =
-          composerById.get(pick.composerId) ??
-          { composerId: pick.composerId, name: pick.label, createdAt: Date.now() };
+          rootsById.get(picked.composerId) ??
+          { composerId: picked.composerId, createdAt: Date.now() };
       }
 
       if (!composer) {
@@ -216,6 +208,89 @@ export function activate(context: vscode.ExtensionContext): void {
           composer: composerById.get(picked.composerId),
         });
       }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cursorBranchChat.attachCurrentClaudeChatToBranch',
+      async () => {
+        const folder = getWorkspaceFolder();
+        if (!folder) {
+          void vscode.window.showWarningMessage(t('messages.noWorkspace'));
+          return;
+        }
+
+        if (!isClaudeExtensionInstalled()) {
+          void vscode.window.showWarningMessage(t('messages.attachClaude.notInstalled'));
+          return;
+        }
+
+        const branch = await getCurrentBranch(folder);
+        const sessions = await listClaudeSessions(folder.uri.fsPath, 20);
+        if (sessions.length === 0) {
+          void vscode.window.showWarningMessage(t('messages.attachClaude.noSessions'));
+          return;
+        }
+
+        const active = await getActiveClaudeSession(folder.uri.fsPath);
+
+        type Pick = vscode.QuickPickItem & { sessionId: string; filePath: string };
+        const picks: Pick[] = sessions.map((s) => {
+          const title =
+            shortenSessionTitle(s.firstUserMessage) ?? `#${s.sessionId.slice(0, 8)}`;
+          const isActive = active?.sessionId === s.sessionId;
+          return {
+            label: `${isActive ? '$(star-full) ' : ''}${title}`,
+            description: s.gitBranch,
+            detail: new Date(s.mtimeMs).toLocaleString(),
+            sessionId: s.sessionId,
+            filePath: s.filePath,
+          };
+        });
+
+        const picked = await vscode.window.showQuickPick(picks, {
+          placeHolder: t('messages.attachClaude.pickPrompt'),
+          matchOnDescription: true,
+          matchOnDetail: true,
+        });
+        if (!picked) {
+          return;
+        }
+
+        const summary = sessions.find((s) => s.sessionId === picked.sessionId);
+        const startCommitHash = (await getHeadCommit(folder.uri.fsPath)) ?? undefined;
+        const cachedName =
+          shortenSessionTitle(summary?.firstUserMessage) ??
+          `Claude #${picked.sessionId.slice(0, 8)}`;
+
+        upsertEntry(context.globalState, {
+          composerId: picked.sessionId,
+          branchName: branch,
+          startCommitHash,
+          cachedName,
+          workspaceFolder: folder.uri.fsPath,
+          status: 'active',
+          source: 'claude',
+          sessionFilePath: picked.filePath,
+        });
+
+        provider.refresh();
+        void vscode.window.showInformationMessage(
+          t('messages.attachClaude.success', { name: cachedName, branch })
+        );
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('cursorBranchChat.dumpDiagnostics', async () => {
+      const dump = await dumpComposerDiagnostics(context);
+      const doc = await vscode.workspace.openTextDocument({
+        content: dump,
+        language: 'json',
+      });
+      await vscode.window.showTextDocument(doc);
     })
   );
 }

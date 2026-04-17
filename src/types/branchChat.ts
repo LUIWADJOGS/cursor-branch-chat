@@ -1,5 +1,7 @@
 export type BranchChatStatus = 'active' | 'archived';
 
+export type ChatSource = 'cursor' | 'claude';
+
 export interface CursorComposerSummary {
   composerId: string;
   name?: string;
@@ -31,6 +33,10 @@ export interface BranchChatEntry {
   updatedAt: string;
   workspaceFolder: string;
   status: BranchChatStatus;
+  /** 'cursor' (default, for backwards-compat when undefined) or 'claude' */
+  source?: ChatSource;
+  /** For claude entries: absolute path of the JSONL session file at attach time. */
+  sessionFilePath?: string;
 }
 
 export interface ChatRegistryData {

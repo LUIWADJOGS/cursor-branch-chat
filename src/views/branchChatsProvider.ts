@@ -9,7 +9,9 @@ import {
   getComposerData,
   getRootComposers,
 } from '../cursor/composerStorage';
+import { getClaudeSessionById, shortenSessionTitle } from '../claude/claudeSessions';
 import { t } from '../i18n';
+import * as fs from 'fs';
 
 type BranchChatTarget = {
   entry: BranchChatEntry;
@@ -50,7 +52,19 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
 
     const items = await Promise.all(
       entries.map(async (entry) => {
-        const liveComposer = composerById.get(entry.composerId);
+        const isClaude = entry.source === 'claude';
+        const liveComposer = isClaude ? undefined : composerById.get(entry.composerId);
+
+        // Refresh Claude cached name from the JSONL if still on disk.
+        let claudeLiveName: string | undefined;
+        let claudeMtime: number | undefined;
+        if (isClaude) {
+          const session = await getClaudeSessionById(folder.uri.fsPath, entry.composerId);
+          if (session) {
+            claudeLiveName = shortenSessionTitle(session.firstUserMessage);
+            claudeMtime = session.mtimeMs;
+          }
+        }
 
         // After Cursor's chat migration allComposers only has ~10 recent entries.
         // Older attached chats are no longer listed there, so we fall back to a
@@ -58,6 +72,7 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
         const resolvedName =
           entry.customName ??
           liveComposer?.name ??
+          claudeLiveName ??
           entry.cachedName ??
           `#${entry.composerId.slice(0, 8)}`;
 
@@ -67,11 +82,13 @@ export class BranchChatsProvider implements vscode.TreeDataProvider<BranchChatTr
               composerId: entry.composerId,
               name: resolvedName,
               createdAt: new Date(entry.createdAt).getTime(),
+              lastUpdatedAt: claudeMtime,
             };
 
         // Keep cachedName in sync so it survives future migrations.
-        if (liveComposer?.name && liveComposer.name !== entry.cachedName) {
-          updateEntry(this.context.globalState, entry.id, { cachedName: liveComposer.name });
+        const freshName = liveComposer?.name ?? claudeLiveName;
+        if (freshName && freshName !== entry.cachedName) {
+          updateEntry(this.context.globalState, entry.id, { cachedName: freshName });
         }
 
         if (!entry.startCommitHash) {
@@ -114,11 +131,15 @@ export class BranchChatTreeItem extends vscode.TreeItem {
       arguments: [this],
     };
 
+    const isClaude = entry.source === 'claude';
+    this.iconPath = new vscode.ThemeIcon(isClaude ? 'sparkle' : 'comment-discussion');
+
     const hasBadge = commitInfo !== undefined && commitInfo.commitCount > 0;
     const badge = hasBadge
       ? ` ${t('chat.commitsBadge', { count: String(commitInfo!.commitCount) })}`
       : '';
-    this.description = `${entry.branchName}${badge}`;
+    const sourceTag = isClaude ? `[${t('chat.claudeBadge')}] ` : '';
+    this.description = `${sourceTag}${entry.branchName}${badge}`;
     this.contextValue = hasBadge ? 'entry-with-diff' : 'entry';
 
     const tooltip = new vscode.MarkdownString();
@@ -153,6 +174,11 @@ export function registerTreeViewCommands(
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('cursorBranchChat.openChat', async (item: BranchChatTarget) => {
+      if (item.entry.source === 'claude') {
+        await openClaudeSession(item);
+        return;
+      }
+
       const openedViaCommand = await openComposerWithCursorCommand(context, item.composer.composerId);
       if (openedViaCommand) {
         return;
@@ -340,6 +366,34 @@ async function openComposerWithCursorCommand(
   }
 
   return false;
+}
+
+async function openClaudeSession(item: BranchChatTarget): Promise<void> {
+  const filePath = item.entry.sessionFilePath;
+  if (!filePath || !fs.existsSync(filePath)) {
+    void vscode.window.showWarningMessage(t('messages.openClaude.notFound'));
+    return;
+  }
+
+  try {
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    await vscode.window.showTextDocument(doc, { preview: true });
+
+    const commands = await vscode.commands.getCommands(true);
+    if (commands.includes('claude-vscode.editor.openLast')) {
+      try {
+        await vscode.commands.executeCommand('claude-vscode.editor.openLast');
+      } catch {
+        // Non-fatal: the JSONL is already visible as a fallback.
+      }
+    }
+  } catch {
+    void vscode.window.showWarningMessage(
+      t('messages.openClaude.failed', {
+        name: item.composer.name ?? item.entry.composerId,
+      })
+    );
+  }
 }
 
 async function isComposerOpen(
